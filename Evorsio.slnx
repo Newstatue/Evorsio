@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Evorsio.AppHost/Evorsio.AppHost.csproj" />
+  <Project Path="Evorsio.BotService/Evorsio.BotService.csproj" />
+  <Project Path="Evorsio.ServiceDefaults/Evorsio.ServiceDefaults.csproj" />
+  <Project Path="Evorsio.UserService\Evorsio.UserService.csproj" />
+</Solution>
