@@ -33,6 +33,13 @@ public static class Extensions
 
             // Turn on service discovery by default
             http.AddServiceDiscovery();
+
+            // Configure primary HTTP message handler to respect development environment SSL overrides
+            http.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                // Only disable SSL validation in development
+                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            });
         });
 
         // Uncomment the following to restrict the allowed schemes for service discovery.

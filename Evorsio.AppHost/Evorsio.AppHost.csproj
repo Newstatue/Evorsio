@@ -20,8 +20,4 @@
       <PackageReference Include="CommunityToolkit.Aspire.Hosting.Dapr" Version="13.0.0" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Content Include=".ngrok\ngrok.yml" />
-    </ItemGroup>
-
 </Project>
