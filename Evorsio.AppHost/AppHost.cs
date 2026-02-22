@@ -1,11 +1,21 @@
 using Aspire.Hosting.Yarp.Transforms;
+using Microsoft.Extensions.Hosting;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddDapr();
 
-var redis = builder.AddRedis("redis")
-    .WithRedisInsight();
+var compose = builder.AddDockerComposeEnvironment("compose")
+    .WithDashboard(enabled: true);
+
+var redis = builder.AddRedis("redis");
+
+if (!builder.Environment.IsDevelopment())
+{
+    redis.WithDataVolume("redis-data");
+}
+
+redis.WithRedisInsight();
 var redisHost = redis.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
 var redisPort = redis.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
 
@@ -40,11 +50,14 @@ var telegramBotToken = builder.AddParameter("telegram-bot-token",secret:true);
 // Telegram Webhook 密钥 
 var telegramWebhookSecret = builder.AddParameter("telegram-webhook-secret",secret:true);
 
-// Cloudflare Tunnel Token
-var cloudflareTunnelToken = builder.AddParameter("cloudflare-tunnel-token", secret: true);
+var postgres = builder.AddPostgres("postgres", userName: postgresUsername, password: postgresPassword);
 
-var postgres = builder.AddPostgres("postgres", userName: postgresUsername, password: postgresPassword)
-    .WithPgAdmin();
+if (!builder.Environment.IsDevelopment())
+{
+    postgres.WithDataVolume("postgres-data");
+}
+
+postgres.WithPgAdmin();
 var userDb = postgres.AddDatabase("userdb");
 var keycloakDb = postgres.AddDatabase("keycloakdb");
 var postgresHost = postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
@@ -101,6 +114,7 @@ var botService = builder.AddProject<Projects.Evorsio_BotService>("bot-service")
     .WithDaprSidecar(sidecar => sidecar.WithReference(stateStore).WithReference(pubSub));
 
 var gateway = builder.AddYarp("gateway")
+    .WithHostPort(8000)
     .WithConfiguration(yarp =>
     {
         yarp.AddRoute("/auth/{**catch-all}", keycloak.GetEndpoint("http"))
@@ -111,15 +125,22 @@ var gateway = builder.AddYarp("gateway")
         yarp.AddRoute("/bot/{**catch-all}", botService);
     });
 
-var cloudflared = builder.AddContainer("cloudflared", "cloudflare/cloudflared", "1818-66587173e2cd")
-    .WithReference(gateway)
-    .WaitFor(gateway)
-    .WithArgs(
-        "tunnel",
-        "--no-autoupdate",
-        "run",
-        "--token",
-        cloudflareTunnelToken
-    );
+
+
+if (builder.Environment.IsDevelopment())
+{
+    // Cloudflare Tunnel Token
+    var cloudflareTunnelToken = builder.AddParameter("cloudflare-tunnel-token", secret: true);
+    builder.AddContainer("cloudflared", "cloudflare/cloudflared", "1818-66587173e2cd")
+        .WithReference(gateway)
+        .WaitFor(gateway)
+        .WithArgs(
+            "tunnel",
+            "--no-autoupdate",
+            "run",
+            "--token",
+            cloudflareTunnelToken
+        );
+}
 
 builder.Build().Run();

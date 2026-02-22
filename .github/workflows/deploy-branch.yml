@@ -1,0 +1,125 @@
+name: deploy-branch
+
+on:
+  push:
+    branches:
+      - deploy
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  BOT_IMAGE_NAME: ${{ github.repository_owner }}/evorsio-bot-service
+  USER_IMAGE_NAME: ${{ github.repository_owner }}/evorsio-user-service
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      bot_image: ${{ steps.images.outputs.bot_image }}
+      user_image: ${{ steps.images.outputs.user_image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push bot-service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Evorsio.BotService/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BOT_IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.BOT_IMAGE_NAME }}:deploy-latest
+
+      - name: Build and push user-service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Evorsio.UserService/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.USER_IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.USER_IMAGE_NAME }}:deploy-latest
+
+      - name: Export image refs
+        id: images
+        run: |
+          echo "bot_image=${{ env.REGISTRY }}/${{ env.BOT_IMAGE_NAME }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "user_image=${{ env.REGISTRY }}/${{ env.USER_IMAGE_NAME }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install Aspire CLI
+        run: |
+          dotnet tool install --global Aspire.Cli --prerelease
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Generate compose from AppHost
+        run: |
+          aspire publish --project "Evorsio.AppHost/Evorsio.AppHost.csproj" -o "aspire-publish-output" --environment Production --non-interactive
+
+      - name: Prepare deployment files
+        run: |
+          cp "Evorsio.AppHost/Realms/realm-export.json" "aspire-publish-output/realm-export.json"
+          printf "%s" "${{ secrets.DEPLOY_ENV_FILE }}" > "aspire-publish-output/.env"
+          {
+            echo "BOT_SERVICE_IMAGE=${{ needs.build-and-push.outputs.bot_image }}"
+            echo "USER_SERVICE_IMAGE=${{ needs.build-and-push.outputs.user_image }}"
+          } >> "aspire-publish-output/.env"
+
+      - name: Upload compose bundle
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: "aspire-publish-output/docker-compose.yaml,aspire-publish-output/.env,aspire-publish-output/realm-export.json"
+          target: "${{ secrets.SERVER_APP_DIR }}/incoming"
+          overwrite: true
+
+      - name: Run deployment on server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            set -e
+            APP_DIR="${{ secrets.SERVER_APP_DIR }}"
+            mkdir -p "$APP_DIR/Realms"
+            mv "$APP_DIR/incoming/aspire-publish-output/docker-compose.yaml" "$APP_DIR/docker-compose.yaml"
+            mv "$APP_DIR/incoming/aspire-publish-output/.env" "$APP_DIR/.env"
+            mv "$APP_DIR/incoming/aspire-publish-output/realm-export.json" "$APP_DIR/Realms/realm-export.json"
+            rm -rf "$APP_DIR/incoming"
+            cd "$APP_DIR"
+            docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" -p "${{ secrets.GHCR_PAT }}"
+            docker compose --env-file .env -f docker-compose.yaml pull
+            docker compose --env-file .env -f docker-compose.yaml up -d
+            docker compose --env-file .env -f docker-compose.yaml ps
