@@ -7,14 +7,18 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Aspire.Keycloak.Authentication" Version="13.1.0-preview.1.25616.3" />
         <PackageReference Include="Dapr.AspNetCore" Version="1.16.1" />
+      <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.3" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.3"/>
         <PackageReference Include="Telegram.Bot" Version="22.9.0" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Evorsio.ServiceDefaults\Evorsio.ServiceDefaults.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Services\" />
     </ItemGroup>
 
 </Project>

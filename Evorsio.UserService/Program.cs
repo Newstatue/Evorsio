@@ -15,33 +15,31 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddAuthentication()
-    .AddKeycloakJwtBearer(
-        serviceName: "keycloak",
-        realm:"Evorsio",
-        options =>
+var keycloakAuthority =
+    Environment.GetEnvironmentVariable("KEYCLOAK_AUTHORITY")
+    ?? "https://api.evorsio.com/auth/realms/Evorsio";
+
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer(options =>
+    {
+        options.Authority = keycloakAuthority;
+        options.MetadataAddress = $"{keycloakAuthority.TrimEnd('/')}/.well-known/openid-configuration";
+        options.Audience = "account";
+        options.RequireHttpsMetadata = false;
+
+        options.Events.OnTokenValidated = context =>
         {
-            options.Audience = "account";
-            
-            options.Events.OnTokenValidated = context =>
-            {
-                var jwt = context.SecurityToken as System.IdentityModel.Tokens.Jwt.JwtSecurityToken;
-                var azpClaim = jwt?.Claims.FirstOrDefault(c => c.Type == "azp")?.Value;
+            var jwt = context.SecurityToken as System.IdentityModel.Tokens.Jwt.JwtSecurityToken;
+            var azpClaim = jwt?.Claims.FirstOrDefault(c => c.Type == "azp")?.Value;
 
-                if (azpClaim != "user-service")
-                {
-                    context.Fail("JWT Token 的 azp 与预期客户端不匹配");
-                }
-
-                return Task.CompletedTask;
-            };
-            
-            if (builder.Environment.IsDevelopment())
+            if (azpClaim != "user-service")
             {
-                options.RequireHttpsMetadata = false;
+                context.Fail("JWT Token 的 azp 与预期客户端不匹配");
             }
-        }
-    );
+
+            return Task.CompletedTask;
+        };
+    });
 
 var app = builder.Build();
 

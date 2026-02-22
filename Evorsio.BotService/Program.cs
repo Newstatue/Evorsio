@@ -1,9 +1,9 @@
-using Evorsio.BotService.Services;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.IdentityModel.Protocols;
 using Telegram.Bot;
-using Telegram.Bot.Polling;
+using Evorsio.BotService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,67 +25,51 @@ if (string.IsNullOrEmpty(botSecret))
     throw new Exception("请在环境变量中设置 BOT_SERVICE_SECRET");
 }
 
+var keycloakAuthority =
+    Environment.GetEnvironmentVariable("KEYCLOAK_AUTHORITY")
+    ?? "https://api.evorsio.com/auth/realms/Evorsio";
+
+var publicBaseUrl =
+    Environment.GetEnvironmentVariable("PUBLIC_BASE_URL")
+    ?? "https://api.evorsio.com";
+
 builder.Services.AddSingleton<ITelegramBotClient>(_ =>
     new TelegramBotClient(botToken, cancellationToken: cts.Token)
 );
+builder.Services.AddSingleton<TelegramAuthSessionStore>();
+builder.Services.AddHostedService<TelegramWebhookRegistrationService>();
 
-// ✅ 注册 BotService 到 DI 容器 (作为 IUpdateHandler 单例)
-builder.Services.AddSingleton<IUpdateHandler>(sp =>
-{
-    var botClient = sp.GetRequiredService<ITelegramBotClient>();
-    var logger = sp.GetRequiredService<ILogger<BotService>>();
-    return new BotService(botClient, logger);
-});
-
-// ✅ 根据环境选择 Webhook 或 Polling 模式
-var useWebhook = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TELEGRAM_WEBHOOK_URL"));
-
-if (useWebhook)
-{
-    // 生产环境使用 Webhook
-    builder.Services.AddHostedService<WebhookInitializer>();
-    Console.WriteLine("Bot 将使用 Webhook 模式");
-}
-else
-{
-    // 开发环境使用 Long Polling
-    builder.Services.AddHostedService<UpdatePollingService>();
-    Console.WriteLine("Bot 将使用 Long Polling 模式");
-}
 
 // 注册认证
 builder.Services.AddAuthentication(options =>
     {
-        // 默认 Scheme 用 Cookie
         options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-        // 远程认证用 OIDC
         options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
     })
     .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddKeycloakOpenIdConnect(
-        serviceName: "keycloak",
-        realm: "Evorsio",
-        options =>
+    .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
+    {
+        options.Authority = keycloakAuthority;
+        options.MetadataAddress = $"{keycloakAuthority.TrimEnd('/')}/.well-known/openid-configuration";
+        options.ClientId = "bot-service";
+        options.ClientSecret = botSecret;
+        options.CallbackPath = "/bot/telegram/signin-oidc";
+        options.ResponseType = OpenIdConnectResponseType.Code;
+        options.PushedAuthorizationBehavior = PushedAuthorizationBehavior.Disable;
+        options.Scope.Clear();
+        options.Scope.Add("openid");
+        options.Scope.Add("profile");
+        options.Scope.Add("email");
+        options.SaveTokens = true;
+        options.GetClaimsFromUserInfoEndpoint = true;
+        options.RequireHttpsMetadata = false;
+        options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.Events.OnRedirectToIdentityProvider = context =>
         {
-            options.ClientId = "bot-service";
-            options.ClientSecret = botSecret;
-            options.ResponseType = OpenIdConnectResponseType.Code;
-            options.Scope.Clear();
-            options.Scope.Add("openid");
-            options.Scope.Add("profile");
-            options.Scope.Add("email");
-            options.SaveTokens = true;
-            options.GetClaimsFromUserInfoEndpoint = true;
-
-            // 开发环境允许 HTTP
-            if (builder.Environment.IsDevelopment())
-            {
-                options.RequireHttpsMetadata = false;
-            }
-
-            // 指定 SignInScheme 为 Cookie
-            options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-        });
+            context.ProtocolMessage.RedirectUri = $"{publicBaseUrl.TrimEnd('/')}{options.CallbackPath}";
+            return Task.CompletedTask;
+        };
+    });
 
 
 // 注册 OpenApi
