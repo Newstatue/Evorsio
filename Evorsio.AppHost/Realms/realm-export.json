@@ -488,6 +488,36 @@
       },
       "notBefore": 0,
       "groups": []
+    },
+    {
+      "id": "d9fbf04f-9988-4c70-9778-a4207cb4b247",
+      "username": "test",
+      "firstName": "Evorsio",
+      "lastName": "Demo",
+      "email": "test@evorsio.com",
+      "attributes": {
+        "locale": [
+          "zh-CN"
+        ]
+      },
+      "emailVerified": true,
+      "enabled": true,
+      "totp": false,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "123abc",
+          "temporary": false
+        }
+      ],
+      "disableableCredentialTypes": [],
+      "requiredActions": [],
+      "realmRoles": [
+        "default-roles-evorsio"
+      ],
+      "clientRoles": {},
+      "notBefore": 0,
+      "groups": []
     }
   ],
   "scopeMappings": [
@@ -523,7 +553,9 @@
       "redirectUris": [
         "/realms/Evorsio/account/*"
       ],
-      "webOrigins": [],
+      "webOrigins": [
+        "+"
+      ],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -570,7 +602,9 @@
       "redirectUris": [
         "/realms/Evorsio/account/*"
       ],
-      "webOrigins": [],
+      "webOrigins": [
+        "+"
+      ],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,

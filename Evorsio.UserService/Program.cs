@@ -15,9 +15,19 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var keycloakAuthority =
-    Environment.GetEnvironmentVariable("KEYCLOAK_AUTHORITY")
-    ?? "https://api.evorsio.com/auth/realms/Evorsio";
+var publicBaseUrl = Environment.GetEnvironmentVariable("PUBLIC_BASE_URL");
+if (string.IsNullOrWhiteSpace(publicBaseUrl))
+{
+    throw new Exception("请设置 PUBLIC_BASE_URL。");
+}
+
+var keycloakRealm = Environment.GetEnvironmentVariable("KEYCLOAK_REALM");
+if (string.IsNullOrWhiteSpace(keycloakRealm))
+{
+    throw new Exception("请设置 KEYCLOAK_REALM。");
+}
+
+var keycloakAuthority = $"{publicBaseUrl.TrimEnd('/')}/auth/realms/{keycloakRealm}";
 
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer(options =>
@@ -59,9 +69,9 @@ if (app.Environment.IsDevelopment())
     {
         context.Users.Add(new User
         {
-            Name = "Admin",
-            Email = "admin@evorsio.local",
-            Locale = "en-US"
+            Name = "test",
+            Email = "test@evorsio.com",
+            Locale = "zh-CN"
         });
         context.SaveChanges();
     }

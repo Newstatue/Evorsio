@@ -8,42 +8,40 @@ using Microsoft.AspNetCore.Mvc;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Evorsio.BotService.Controllers;
 
 [ApiController]
 [Route("bot/telegram")]
-public class TelegramBotController : ControllerBase
+public class TelegramBotController(
+	ITelegramBotClient telegramBotClient,
+	TelegramAuthSessionStore authSessionStore,
+	IConfiguration configuration,
+	ILogger<TelegramBotController> logger)
+	: ControllerBase
 {
 	private const string SecretHeaderName = "X-Telegram-Bot-Api-Secret-Token";
-
-	private readonly ITelegramBotClient _telegramBotClient;
-	private readonly TelegramAuthSessionStore _authSessionStore;
-	private readonly IConfiguration _configuration;
-	private readonly ILogger<TelegramBotController> _logger;
-
-	public TelegramBotController(
-		ITelegramBotClient telegramBotClient,
-		TelegramAuthSessionStore authSessionStore,
-		IConfiguration configuration,
-		ILogger<TelegramBotController> logger)
+	private static readonly ReplyKeyboardMarkup HelpKeyboard = new(
+    [
+        ["/start", "/login"],
+		["/profile", "/help"]
+	])
 	{
-		_telegramBotClient = telegramBotClient;
-		_authSessionStore = authSessionStore;
-		_configuration = configuration;
-		_logger = logger;
-	}
+		ResizeKeyboard = true,
+		IsPersistent = true
+	};
 
 	[HttpPost("webhook")]
 	public async Task<IActionResult> Webhook([FromBody] Update update, CancellationToken cancellationToken)
 	{
-		var expectedSecret = _configuration["TELEGRAM_WEBHOOK_SECRET"];
+		var expectedSecret = configuration["TELEGRAM_WEBHOOK_SECRET"];
 		if (!string.IsNullOrWhiteSpace(expectedSecret))
 		{
 			if (!Request.Headers.TryGetValue(SecretHeaderName, out var actualSecret) ||
 				!string.Equals(actualSecret.ToString(), expectedSecret, StringComparison.Ordinal))
 			{
-				_logger.LogWarning("收到无效的 Telegram webhook secret。");
+				logger.LogWarning("收到无效的 Telegram webhook secret。");
 				return Unauthorized();
 			}
 		}
@@ -58,7 +56,7 @@ public class TelegramBotController : ControllerBase
 
 		if (string.Equals(text, "/start", StringComparison.OrdinalIgnoreCase))
 		{
-			await _telegramBotClient.SendMessage(
+			await telegramBotClient.SendMessage(
 				chatId,
 				"Evorsio Bot 已上线，Webhook 工作正常。发送 /login 开始 Keycloak 登录认证。",
 				cancellationToken: cancellationToken);
@@ -68,10 +66,10 @@ public class TelegramBotController : ControllerBase
 
 		if (string.Equals(text, "/login", StringComparison.OrdinalIgnoreCase))
 		{
-			var token = _authSessionStore.Create(chatId, TimeSpan.FromMinutes(5));
+			var token = await authSessionStore.CreateAsync(chatId, TimeSpan.FromMinutes(5));
 			var loginUrl = BuildLoginUrl(token);
 
-			await _telegramBotClient.SendMessage(
+			await telegramBotClient.SendMessage(
 				chatId,
 				$"点击登录 Keycloak 完成认证（5 分钟有效）：\n{loginUrl}",
 				cancellationToken: cancellationToken);
@@ -79,7 +77,30 @@ public class TelegramBotController : ControllerBase
 			return Ok();
 		}
 
-		await _telegramBotClient.SendMessage(
+		if (string.Equals(text, "/profile", StringComparison.OrdinalIgnoreCase))
+		{
+			var accountUrl = BuildKeycloakAccountUrl();
+
+			await telegramBotClient.SendMessage(
+				chatId,
+				$"打开 Keycloak 个人信息页面：\n{accountUrl}",
+				cancellationToken: cancellationToken);
+
+			return Ok();
+		}
+
+		if (string.Equals(text, "/help", StringComparison.OrdinalIgnoreCase))
+		{
+			await telegramBotClient.SendMessage(
+				chatId,
+				"请选择命令：",
+				replyMarkup: HelpKeyboard,
+				cancellationToken: cancellationToken);
+
+			return Ok();
+		}
+
+		await telegramBotClient.SendMessage(
 			chatId,
 			$"收到消息：{text}",
 			cancellationToken: cancellationToken);
@@ -88,9 +109,9 @@ public class TelegramBotController : ControllerBase
 	}
 
 	[HttpGet("auth/start")]
-	public IActionResult StartAuth([FromQuery] string token)
+	public async Task<IActionResult> StartAuth([FromQuery] string token)
 	{
-		if (string.IsNullOrWhiteSpace(token) || !_authSessionStore.IsValid(token))
+		if (string.IsNullOrWhiteSpace(token) || !await authSessionStore.IsValidAsync(token))
 		{
 			return BadRequest("登录链接已失效，请回到 Telegram 重新发送 /login。");
 		}
@@ -107,10 +128,18 @@ public class TelegramBotController : ControllerBase
 	[HttpGet("auth/callback")]
 	public async Task<IActionResult> AuthCallback([FromQuery] string token, CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrWhiteSpace(token) || !_authSessionStore.TryConsume(token, out var chatId))
+		if (string.IsNullOrWhiteSpace(token))
 		{
 			return BadRequest("登录会话已失效，请回到 Telegram 重新发送 /login。");
 		}
+
+		var consumeResult = await authSessionStore.TryConsumeAsync(token);
+		if (!consumeResult.Success)
+		{
+			return BadRequest("登录会话已失效，请回到 Telegram 重新发送 /login。");
+		}
+
+		var chatId = consumeResult.ChatId;
 
 		var userLabel =
 			User.FindFirst("preferred_username")?.Value ??
@@ -119,7 +148,7 @@ public class TelegramBotController : ControllerBase
 			User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
 			"unknown";
 
-		await _telegramBotClient.SendMessage(
+		await telegramBotClient.SendMessage(
 			chatId,
 			$"✅ 认证成功，当前账号：{userLabel}",
 			cancellationToken: cancellationToken);
@@ -129,16 +158,12 @@ public class TelegramBotController : ControllerBase
 
 	private string BuildLoginUrl(string token)
 	{
-		var webhookUrl = _configuration["TELEGRAM_WEBHOOK_URL"];
-		if (Uri.TryCreate(webhookUrl, UriKind.Absolute, out var webhookUri))
+		var publicBaseUrl = configuration["PUBLIC_BASE_URL"];
+		if (Uri.TryCreate(publicBaseUrl, UriKind.Absolute, out var publicBaseUri))
 		{
-			var authPath = webhookUri.AbsolutePath.EndsWith("/webhook", StringComparison.OrdinalIgnoreCase)
-				? webhookUri.AbsolutePath[..^"/webhook".Length] + "/auth/start"
-				: "/bot/telegram/auth/start";
-
-			var builder = new UriBuilder(webhookUri)
+			var builder = new UriBuilder(publicBaseUri)
 			{
-				Path = authPath,
+				Path = "/bot/telegram/auth/start",
 				Query = $"token={Uri.EscapeDataString(token)}"
 			};
 
@@ -146,5 +171,28 @@ public class TelegramBotController : ControllerBase
 		}
 
 		return $"/bot/telegram/auth/start?token={Uri.EscapeDataString(token)}";
+	}
+
+	private string BuildKeycloakAccountUrl()
+	{
+		var keycloakRealm = configuration["KEYCLOAK_REALM"];
+		if (string.IsNullOrWhiteSpace(keycloakRealm))
+		{
+			throw new InvalidOperationException("缺少 KEYCLOAK_REALM 配置。");
+		}
+
+		var publicBaseUrl = configuration["PUBLIC_BASE_URL"];
+		if (Uri.TryCreate(publicBaseUrl, UriKind.Absolute, out var publicBaseUri))
+		{
+			var builder = new UriBuilder(publicBaseUri)
+			{
+				Path = $"/auth/realms/{keycloakRealm}/account",
+				Query = string.Empty
+			};
+
+			return builder.Uri.ToString();
+		}
+
+		throw new InvalidOperationException("缺少有效的 PUBLIC_BASE_URL 配置。");
 	}
 }

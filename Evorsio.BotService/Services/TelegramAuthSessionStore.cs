@@ -1,52 +1,57 @@
-using System.Collections.Concurrent;
+using Dapr.Client;
 
 namespace Evorsio.BotService.Services;
 
-public class TelegramAuthSessionStore
+public class TelegramAuthSessionStore(DaprClient daprClient, IConfiguration configuration)
 {
-    private readonly ConcurrentDictionary<string, AuthSession> _sessions = new();
+    private const string DefaultStateStoreName = "statestore";
+    private const string SessionKeyPrefix = "telegram-auth-session";
+    private readonly string _stateStoreName = configuration["DAPR_STATESTORE_NAME"] ?? DefaultStateStoreName;
 
-    public string Create(long chatId, TimeSpan ttl)
+    public async Task<string> CreateAsync(long chatId, TimeSpan ttl)
     {
-        CleanupExpired();
-
         var token = Guid.NewGuid().ToString("N");
-        _sessions[token] = new AuthSession(chatId, DateTimeOffset.UtcNow.Add(ttl));
+        var session = new AuthSession(chatId, DateTimeOffset.UtcNow.Add(ttl));
+
+        await daprClient.SaveStateAsync(_stateStoreName, BuildSessionKey(token), session);
         return token;
     }
 
-    public bool IsValid(string token)
+    public async Task<bool> IsValidAsync(string token)
     {
-        CleanupExpired();
-        return _sessions.ContainsKey(token);
-    }
-
-    public bool TryConsume(string token, out long chatId)
-    {
-        CleanupExpired();
-
-        chatId = default;
-        if (!_sessions.TryRemove(token, out var session))
+        var session = await daprClient.GetStateAsync<AuthSession?>(_stateStoreName, BuildSessionKey(token));
+        if (session is null)
         {
             return false;
         }
 
-        chatId = session.ChatId;
+        if (session.ExpiresAt <= DateTimeOffset.UtcNow)
+        {
+            await daprClient.DeleteStateAsync(_stateStoreName, BuildSessionKey(token));
+            return false;
+        }
+
         return true;
     }
 
-    private void CleanupExpired()
+    public async Task<(bool Success, long ChatId)> TryConsumeAsync(string token)
     {
-        var now = DateTimeOffset.UtcNow;
-
-        foreach (var pair in _sessions)
+        var session = await daprClient.GetStateAsync<AuthSession?>(_stateStoreName, BuildSessionKey(token));
+        if (session is null)
         {
-            if (pair.Value.ExpiresAt <= now)
-            {
-                _sessions.TryRemove(pair.Key, out _);
-            }
+            return (false, default);
         }
+
+        await daprClient.DeleteStateAsync(_stateStoreName, BuildSessionKey(token));
+        if (session.ExpiresAt <= DateTimeOffset.UtcNow)
+        {
+            return (false, default);
+        }
+
+        return (true, session.ChatId);
     }
+
+    private static string BuildSessionKey(string token) => $"{SessionKeyPrefix}:{token}";
 
     private sealed record AuthSession(long ChatId, DateTimeOffset ExpiresAt);
 }
