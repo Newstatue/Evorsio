@@ -99,9 +99,19 @@ jobs:
           cp "Evorsio.AppHost/Realms/realm-export.json" "aspire-publish-output/realm-export.json"
           printf "%s" "${{ secrets.DEPLOY_ENV_FILE }}" > "aspire-publish-output/.env"
           {
+            echo
             echo "BOT_SERVICE_IMAGE=${{ needs.build-and-push.outputs.bot_image }}"
             echo "USER_SERVICE_IMAGE=${{ needs.build-and-push.outputs.user_image }}"
           } >> "aspire-publish-output/.env"
+
+          if ! grep -qE '^BOT_SERVICE_IMAGE=.+$' "aspire-publish-output/.env"; then
+            echo "::error::BOT_SERVICE_IMAGE is missing in generated .env"
+            exit 1
+          fi
+          if ! grep -qE '^USER_SERVICE_IMAGE=.+$' "aspire-publish-output/.env"; then
+            echo "::error::USER_SERVICE_IMAGE is missing in generated .env"
+            exit 1
+          fi
 
       - name: Upload compose bundle
         uses: appleboy/scp-action@v0.1.7
