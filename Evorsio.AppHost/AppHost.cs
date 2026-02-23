@@ -43,6 +43,8 @@ var publicBaseUrl = builder.AddParameter("public-base-url");
 var keycloakRealm = builder.AddParameter("keycloak-realm");
 var keycloakHostname = builder.AddParameter("keycloak-hostname");
 var botServiceSecret = builder.AddParameter("bot-service-secret", secret: true);
+var strapiKeycloakClientId = builder.AddParameter("strapi-keycloak-client-id");
+var strapiKeycloakClientSecret = builder.AddParameter("strapi-keycloak-client-secret", secret: true);
 
 // Telegram Bot 令牌
 var telegramBotToken = builder.AddParameter("telegram-bot-token", secret: true);
@@ -122,10 +124,22 @@ var gateway = builder.AddYarp("gateway")
         yarp.AddRoute("/auth/{**catch-all}", keycloak.GetEndpoint("http"))
             .WithTransformXForwarded();
         // User service API
-        yarp.AddRoute("/user/{**catch-all}", userService);
+        yarp.AddRoute("/user/{**catch-all}", userService.GetEndpoint("http"));
         // Bot service API
-        yarp.AddRoute("/bot/{**catch-all}", botService);
+        yarp.AddRoute("/bot/{**catch-all}", botService.GetEndpoint("http"));
     });
+
+var strapi = builder.AddContainer("strapi", "strapi/strapi", "4.25.20")
+    .WithEnvironment("HOST", "0.0.0.0")
+    .WithEnvironment("PORT", "1337")
+    .WithEnvironment("KEYCLOAK_CLIENT_ID", strapiKeycloakClientId)
+    .WithEnvironment("KEYCLOAK_REALM", keycloakRealm)
+    .WithEnvironment("KEYCLOAK_PUBLIC_CLIENT", "false")
+    .WithEnvironment("KEYCLOAK_CLIENT_SECRET", strapiKeycloakClientSecret)
+    .WithEnvironment("KEYCLOAK_SSL_REQUIRED", "external")
+    .WithEnvironment("KEYCLOAK_AUTH_SERVER_URL", keycloakHostname)
+    .WithEndpoint(targetPort: 1337, scheme: "http", name: "http")
+    .WithOtlpExporter();
 
 
 if (builder.Environment.IsProduction())
@@ -136,7 +150,8 @@ if (builder.Environment.IsProduction())
            .WithBindMount("./Nginx/acme-challenge", "/var/www/certbot")
            .WithEndpoint(port: 80, targetPort: 80, scheme: "http", name: "http", isExternal: true)
            .WithEndpoint(port: 443, targetPort: 443, scheme: "https", name: "https", isExternal: true)
-           .WaitFor(gateway);
+           .WaitFor(gateway)
+           .WaitFor(strapi);
 }
 
 if (builder.Environment.IsDevelopment())
