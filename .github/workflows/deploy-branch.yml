@@ -96,12 +96,19 @@ jobs:
 
       - name: Prepare deployment files
         run: |
+          mkdir -p "aspire-publish-output/Nginx" "aspire-publish-output/DatabaseInit"
           cp "Evorsio.AppHost/Realms/realm-export.json" "aspire-publish-output/realm-export.json"
+          cp -r "Evorsio.AppHost/Nginx/." "aspire-publish-output/Nginx/"
+          cp -r "Evorsio.AppHost/DatabaseInit/." "aspire-publish-output/DatabaseInit/"
           printf "%s" "${{ secrets.DEPLOY_ENV_FILE }}" > "aspire-publish-output/.env"
           {
             echo
             echo "BOT_SERVICE_IMAGE=${{ needs.build-and-push.outputs.bot_image }}"
             echo "USER_SERVICE_IMAGE=${{ needs.build-and-push.outputs.user_image }}"
+            echo "POSTGRES_BINDMOUNT_0=./DatabaseInit"
+            echo "NGINX_BINDMOUNT_0=./Nginx/nginx.conf"
+            echo "NGINX_BINDMOUNT_1=./Nginx/certs"
+            echo "NGINX_BINDMOUNT_2=./Nginx/acme-challenge"
           } >> "aspire-publish-output/.env"
 
           if ! grep -qE '^BOT_SERVICE_IMAGE=.+$' "aspire-publish-output/.env"; then
@@ -120,7 +127,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          source: "aspire-publish-output/docker-compose.yaml,aspire-publish-output/.env,aspire-publish-output/realm-export.json"
+          source: "aspire-publish-output/docker-compose.yaml,aspire-publish-output/.env,aspire-publish-output/realm-export.json,aspire-publish-output/Nginx,aspire-publish-output/DatabaseInit"
           target: "~/incoming"
           overwrite: true
 
@@ -139,10 +146,13 @@ jobs:
               exit 1
             fi
             APP_DIR="$HOME/$APP_SUBDIR"
-            mkdir -p "$APP_DIR/Realms"
+            mkdir -p "$APP_DIR/Realms" "$APP_DIR/Nginx" "$APP_DIR/DatabaseInit"
             mv "$HOME/incoming/aspire-publish-output/docker-compose.yaml" "$APP_DIR/docker-compose.yaml"
             mv "$HOME/incoming/aspire-publish-output/.env" "$APP_DIR/.env"
             mv "$HOME/incoming/aspire-publish-output/realm-export.json" "$APP_DIR/Realms/realm-export.json"
+            rm -rf "$APP_DIR/Nginx" "$APP_DIR/DatabaseInit"
+            mv "$HOME/incoming/aspire-publish-output/Nginx" "$APP_DIR/Nginx"
+            mv "$HOME/incoming/aspire-publish-output/DatabaseInit" "$APP_DIR/DatabaseInit"
             rm -rf "$HOME/incoming"
             cd "$APP_DIR"
 
