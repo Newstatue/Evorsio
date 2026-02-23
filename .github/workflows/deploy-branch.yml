@@ -79,6 +79,12 @@ jobs:
           dotnet tool install --global Aspire.Cli --prerelease
           echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
 
+      - name: Install Dapr CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/dapr/cli/master/install/install.sh | /bin/bash
+          echo "$HOME/.dapr/bin" >> "$GITHUB_PATH"
+          "$HOME/.dapr/bin/dapr" --version
+
       - name: Generate compose from AppHost
         run: |
           aspire publish --project "Evorsio.AppHost/Evorsio.AppHost.csproj" -o "aspire-publish-output" --environment Production --non-interactive
