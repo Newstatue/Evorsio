@@ -145,6 +145,23 @@ jobs:
             mv "$HOME/incoming/aspire-publish-output/realm-export.json" "$APP_DIR/Realms/realm-export.json"
             rm -rf "$HOME/incoming"
             cd "$APP_DIR"
+
+            set -a
+            . ./.env
+            set +a
+
+            cleanup_on_error() {
+              echo "Deployment failed, removing current release images..."
+              if [ -n "${BOT_SERVICE_IMAGE:-}" ]; then
+                docker image rm -f "$BOT_SERVICE_IMAGE" || true
+              fi
+              if [ -n "${USER_SERVICE_IMAGE:-}" ]; then
+                docker image rm -f "$USER_SERVICE_IMAGE" || true
+              fi
+            }
+
+            trap cleanup_on_error ERR
+
             docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" -p "${{ secrets.GHCR_PAT }}"
             docker compose --env-file .env -f docker-compose.yaml pull
             docker compose --env-file .env -f docker-compose.yaml up -d

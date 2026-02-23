@@ -698,17 +698,17 @@
       "clientId": "bot-service",
       "name": "",
       "description": "",
-      "rootUrl": "https://api.evorsio.com",
+      "rootUrl": "${PUBLIC_BASE_URL}",
       "adminUrl": "",
-      "baseUrl": "https://api.evorsio.com/bot/telegram/auth/start",
+      "baseUrl": "${PUBLIC_BASE_URL}/bot/telegram/auth/start",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "secret": "${BOT_SERVICE_SECRET}",
       "redirectUris": [
-        "https://api.evorsio.com/bot/telegram/signin-oidc",
-        "https://api.evorsio.com/bot/telegram/auth/callback*"
+        "${PUBLIC_BASE_URL}/bot/telegram/signin-oidc",
+        "${PUBLIC_BASE_URL}/bot/telegram/auth/callback*"
       ],
       "webOrigins": [
         "/*"
@@ -2654,7 +2654,7 @@
     "oauth2DeviceCodeLifespan": "600",
     "parRequestUriLifespan": "60",
     "clientSessionMaxLifespan": "0",
-    "adminUrl": "https://api.evorsio.com/auth"
+    "adminUrl": "${KEYCLOAK_HOSTNAME}"
   },
   "keycloakVersion": "26.4.7",
   "userManagedAccessAllowed": false,

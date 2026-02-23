@@ -35,22 +35,23 @@ if (redis.Resource.PasswordParameter is not null)
     pubSub.WithMetadata("redisPassword", redis.Resource.PasswordParameter);
 }
 
-var keycloakAdminPassword = builder.AddParameter("keycloak-admin-password",secret:true);
+var keycloakAdminPassword = builder.AddParameter("keycloak-admin-password", secret: true);
 var keycloakAdminUsername = builder.AddParameter("keycloak-admin-username");
 var postgresUsername = builder.AddParameter("postgres-username");
 var postgresPassword = builder.AddParameter("postgres-password", secret: true);
 var publicBaseUrl = builder.AddParameter("public-base-url");
 var keycloakRealm = builder.AddParameter("keycloak-realm");
 var keycloakHostname = builder.AddParameter("keycloak-hostname");
-var botServiceSecret = builder.AddParameter("bot-service-secret",secret:true);
+var botServiceSecret = builder.AddParameter("bot-service-secret", secret: true);
 
 // Telegram Bot 令牌
-var telegramBotToken = builder.AddParameter("telegram-bot-token",secret:true);
+var telegramBotToken = builder.AddParameter("telegram-bot-token", secret: true);
 
 // Telegram Webhook 密钥 
-var telegramWebhookSecret = builder.AddParameter("telegram-webhook-secret",secret:true);
+var telegramWebhookSecret = builder.AddParameter("telegram-webhook-secret", secret: true);
 
 var postgres = builder.AddPostgres("postgres", userName: postgresUsername, password: postgresPassword);
+postgres.WithBindMount("./DatabaseInit", "/docker-entrypoint-initdb.d", isReadOnly: true);
 
 if (!builder.Environment.IsDevelopment())
 {
@@ -72,7 +73,9 @@ var keycloak = builder.AddContainer("keycloak", "quay.io/keycloak/keycloak", "26
 
     // keycloak client 环境变量占位符配置
     .WithEnvironment("BOT_SERVICE_SECRET", botServiceSecret)
-    
+    .WithEnvironment("PUBLIC_BASE_URL", publicBaseUrl)
+    .WithEnvironment("KEYCLOAK_HOSTNAME", keycloakHostname)
+
     .WithEnvironment("KC_HOSTNAME", keycloakHostname)
     .WithEnvironment("KC_DB", "postgres")
     .WithEnvironment("KC_DB_URL_HOST", postgresHost)
@@ -114,7 +117,6 @@ var botService = builder.AddProject<Projects.Evorsio_BotService>("bot-service")
     .WithDaprSidecar(sidecar => sidecar.WithReference(stateStore).WithReference(pubSub));
 
 var gateway = builder.AddYarp("gateway")
-    .WithEndpoint(port: 8000, targetPort: 5000, scheme: "http", name: "public-http", isExternal: true)
     .WithConfiguration(yarp =>
     {
         yarp.AddRoute("/auth/{**catch-all}", keycloak.GetEndpoint("http"))
@@ -126,6 +128,15 @@ var gateway = builder.AddYarp("gateway")
     });
 
 
+if (builder.Environment.IsProduction())
+{
+    builder.AddContainer("nginx", "nginx", "1.27-alpine")
+           .WithBindMount("./Nginx/nginx.conf", "/etc/nginx/nginx.conf", isReadOnly: true)
+           .WithBindMount("./Nginx/certs", "/etc/nginx/certs")
+           .WithBindMount("./Nginx/acme-challenge", "/var/www/certbot")
+           .WithHttpEndpoint(port: 80, targetPort: 80, name: "http")
+           .WaitFor(gateway);
+}
 
 if (builder.Environment.IsDevelopment())
 {
@@ -142,5 +153,6 @@ if (builder.Environment.IsDevelopment())
             cloudflareTunnelToken
         );
 }
+
 
 builder.Build().Run();
