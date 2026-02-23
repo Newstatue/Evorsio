@@ -114,7 +114,7 @@ var botService = builder.AddProject<Projects.Evorsio_BotService>("bot-service")
     .WithDaprSidecar(sidecar => sidecar.WithReference(stateStore).WithReference(pubSub));
 
 var gateway = builder.AddYarp("gateway")
-    .WithHostPort(8000)
+    .WithEndpoint(port: 8000, targetPort: 5000, scheme: "http", name: "public-http", isExternal: true)
     .WithConfiguration(yarp =>
     {
         yarp.AddRoute("/auth/{**catch-all}", keycloak.GetEndpoint("http"))
