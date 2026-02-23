@@ -8,24 +8,29 @@ builder.AddDapr();
 var compose = builder.AddDockerComposeEnvironment("compose")
     .WithDashboard(enabled: true);
 
-var redis = builder.AddRedis("redis");
+var redis = builder.AddRedis("redis")
+    .WithEnvironment("REDIS_TLS", "no");
 
-if (!builder.Environment.IsDevelopment())
+if (builder.Environment.IsProduction())
 {
     redis.WithDataVolume("redis-data");
 }
 
 redis.WithRedisInsight();
+// 所有服务使用非 TLS 连接 Redis
 var redisHost = redis.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
-var redisPort = redis.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
+var redisPlainPort = "6380";
+var redisDaprHost = redis.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
+var redisDaprPort = redis.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
 
+// Dapr Redis 组件配置 - 使用 Redis 主端点 TLS（发布安全）
 var stateStore = builder.AddDaprComponent("statestore", "state.redis")
-    .WithMetadata("redisHost", ReferenceExpression.Create($"{redisHost}:{redisPort}"))
+    .WithMetadata("redisHost", ReferenceExpression.Create($"{redisDaprHost}:{redisDaprPort}"))
     .WithMetadata("enableTLS", "true")
     .WaitFor(redis);
 
 var pubSub = builder.AddDaprComponent("pubsub", "pubsub.redis")
-    .WithMetadata("redisHost", ReferenceExpression.Create($"{redisHost}:{redisPort}"))
+    .WithMetadata("redisHost", ReferenceExpression.Create($"{redisDaprHost}:{redisDaprPort}"))
     .WithMetadata("enableTLS", "true")
     .WaitFor(redis);
 
@@ -43,8 +48,10 @@ var publicBaseUrl = builder.AddParameter("public-base-url");
 var keycloakRealm = builder.AddParameter("keycloak-realm");
 var keycloakHostname = builder.AddParameter("keycloak-hostname");
 var botServiceSecret = builder.AddParameter("bot-service-secret", secret: true);
-var strapiKeycloakClientId = builder.AddParameter("strapi-keycloak-client-id");
-var strapiKeycloakClientSecret = builder.AddParameter("strapi-keycloak-client-secret", secret: true);
+var directusSecret = builder.AddParameter("directus-secret", secret: true);
+var directusAdminEmail = builder.AddParameter("directus-admin-email");
+var directusAdminPassword = builder.AddParameter("directus-admin-password", secret: true);
+var directusPublicUrl = builder.AddParameter("directus-public-url");
 
 // Telegram Bot 令牌
 var telegramBotToken = builder.AddParameter("telegram-bot-token", secret: true);
@@ -55,7 +62,7 @@ var telegramWebhookSecret = builder.AddParameter("telegram-webhook-secret", secr
 var postgres = builder.AddPostgres("postgres", userName: postgresUsername, password: postgresPassword);
 postgres.WithBindMount("./DatabaseInit", "/docker-entrypoint-initdb.d", isReadOnly: true);
 
-if (!builder.Environment.IsDevelopment())
+if (builder.Environment.IsProduction())
 {
     postgres.WithDataVolume("postgres-data");
 }
@@ -63,6 +70,7 @@ if (!builder.Environment.IsDevelopment())
 postgres.WithPgAdmin();
 var userDb = postgres.AddDatabase("userdb");
 var keycloakDb = postgres.AddDatabase("keycloakdb");
+var directusDb = postgres.AddDatabase("directusdb");
 var postgresHost = postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
 var postgresPort = postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
 
@@ -118,6 +126,46 @@ var botService = builder.AddProject<Projects.Evorsio_BotService>("bot-service")
     .WaitFor(redis)
     .WithDaprSidecar(sidecar => sidecar.WithReference(stateStore).WithReference(pubSub));
 
+var directus = builder.AddContainer("directus", "directus/directus", "11.1.1")
+    .WithEndpoint(port: 8055, targetPort: 8055, scheme: "http", name: "http", isExternal: true)
+    .WithBindMount("./Directus/uploads", "/directus/uploads")
+    .WithBindMount("./Directus/extensions", "/directus/extensions")
+    .WithBindMount("./Directus/templates", "/directus/templates")
+    .WithEnvironment("SECRET", directusSecret)
+    .WithEnvironment("DB_CLIENT", "pg")
+    .WithEnvironment("DB_HOST", postgresHost)
+    .WithEnvironment("DB_PORT", postgresPort)
+    .WithEnvironment("DB_DATABASE", "directusdb")
+    .WithEnvironment("DB_USER", postgresUsername)
+    .WithEnvironment("DB_PASSWORD", postgresPassword)
+    .WithEnvironment("CACHE_ENABLED", "true")
+    .WithEnvironment("CACHE_AUTO_PURGE", "true")
+    .WithEnvironment("CACHE_STORE", "redis")
+    .WithEnvironment("REDIS_HOST", redisHost)
+    .WithEnvironment("REDIS_PORT", redisPlainPort)
+    .WithEnvironment("REDIS_USERNAME", "default")
+    .WithEnvironment("ADMIN_EMAIL", directusAdminEmail)
+    .WithEnvironment("ADMIN_PASSWORD", directusAdminPassword)
+    .WithEnvironment("PUBLIC_URL", directusPublicUrl)
+    .WithEnvironment("REDIS_TLS","false")
+    .WaitFor(directusDb)
+    .WaitFor(redis)
+    .WithOtlpExporter();
+
+if (redis.Resource.PasswordParameter is not null)
+{
+    directus.WithEnvironment("REDIS_PASSWORD", redis.Resource.PasswordParameter);
+}
+
+
+if (builder.Environment.IsProduction())
+{
+    directus
+        .WithVolume("directus-uploads", "/directus/uploads")
+        .WithVolume("directus-extensions", "/directus/extensions")
+        .WithVolume("directus-templates", "/directus/templates");
+}
+
 var gateway = builder.AddYarp("gateway")
     .WithConfiguration(yarp =>
     {
@@ -129,19 +177,6 @@ var gateway = builder.AddYarp("gateway")
         yarp.AddRoute("/bot/{**catch-all}", botService.GetEndpoint("http"));
     });
 
-var strapi = builder.AddContainer("strapi", "strapi/strapi", "4.25.20")
-    .WithEnvironment("HOST", "0.0.0.0")
-    .WithEnvironment("PORT", "1337")
-    .WithEnvironment("KEYCLOAK_CLIENT_ID", strapiKeycloakClientId)
-    .WithEnvironment("KEYCLOAK_REALM", keycloakRealm)
-    .WithEnvironment("KEYCLOAK_PUBLIC_CLIENT", "false")
-    .WithEnvironment("KEYCLOAK_CLIENT_SECRET", strapiKeycloakClientSecret)
-    .WithEnvironment("KEYCLOAK_SSL_REQUIRED", "external")
-    .WithEnvironment("KEYCLOAK_AUTH_SERVER_URL", keycloakHostname)
-    .WithEndpoint(targetPort: 1337, scheme: "http", name: "http")
-    .WithOtlpExporter();
-
-
 if (builder.Environment.IsProduction())
 {
     builder.AddContainer("nginx", "nginx", "1.27-alpine")
@@ -150,8 +185,7 @@ if (builder.Environment.IsProduction())
            .WithBindMount("./Nginx/acme-challenge", "/var/www/certbot")
            .WithEndpoint(port: 80, targetPort: 80, scheme: "http", name: "http", isExternal: true)
            .WithEndpoint(port: 443, targetPort: 443, scheme: "https", name: "https", isExternal: true)
-           .WaitFor(gateway)
-           .WaitFor(strapi);
+           .WaitFor(gateway);
 }
 
 if (builder.Environment.IsDevelopment())
@@ -169,6 +203,5 @@ if (builder.Environment.IsDevelopment())
             cloudflareTunnelToken
         );
 }
-
 
 builder.Build().Run();

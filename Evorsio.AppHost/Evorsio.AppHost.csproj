@@ -15,10 +15,18 @@
 
     <ItemGroup>
       <PackageReference Include="Aspire.Hosting.Docker" Version="13.1.1-preview.1.26105.8" />
+      <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.1.1" />
       <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.1.1" />
       <PackageReference Include="Aspire.Hosting.Redis" Version="13.1.1" />
       <PackageReference Include="Aspire.Hosting.Yarp" Version="13.1.1" />
       <PackageReference Include="CommunityToolkit.Aspire.Hosting.Dapr" Version="13.0.0" />
+      <PackageReference Include="CommunityToolkit.Aspire.Hosting.JavaScript.Extensions" Version="13.1.2-beta.518" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Directus\extensions\" />
+      <Folder Include="Directus\templates\" />
+      <Folder Include="Directus\uploads\" />
     </ItemGroup>
 
 </Project>
