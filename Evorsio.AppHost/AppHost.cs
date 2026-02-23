@@ -134,7 +134,8 @@ if (builder.Environment.IsProduction())
            .WithBindMount("./Nginx/nginx.conf", "/etc/nginx/nginx.conf", isReadOnly: true)
            .WithBindMount("./Nginx/certs", "/etc/nginx/certs")
            .WithBindMount("./Nginx/acme-challenge", "/var/www/certbot")
-           .WithHttpEndpoint(port: 80, targetPort: 80, name: "http")
+           .WithEndpoint(port: 80, targetPort: 80, scheme: "http", name: "http", isExternal: true)
+           .WithEndpoint(port: 443, targetPort: 443, scheme: "https", name: "https", isExternal: true)
            .WaitFor(gateway);
 }
 
