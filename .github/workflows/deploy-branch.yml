@@ -106,7 +106,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           source: "aspire-publish-output/docker-compose.yaml,aspire-publish-output/.env,aspire-publish-output/realm-export.json"
-          target: "${{ secrets.SERVER_APP_DIR }}/incoming"
+          target: "~/incoming"
           overwrite: true
 
       - name: Run deployment on server
@@ -120,10 +120,10 @@ jobs:
             set -e
             APP_DIR="${{ secrets.SERVER_APP_DIR }}"
             mkdir -p "$APP_DIR/Realms"
-            mv "$APP_DIR/incoming/aspire-publish-output/docker-compose.yaml" "$APP_DIR/docker-compose.yaml"
-            mv "$APP_DIR/incoming/aspire-publish-output/.env" "$APP_DIR/.env"
-            mv "$APP_DIR/incoming/aspire-publish-output/realm-export.json" "$APP_DIR/Realms/realm-export.json"
-            rm -rf "$APP_DIR/incoming"
+            mv "$HOME/incoming/aspire-publish-output/docker-compose.yaml" "$APP_DIR/docker-compose.yaml"
+            mv "$HOME/incoming/aspire-publish-output/.env" "$APP_DIR/.env"
+            mv "$HOME/incoming/aspire-publish-output/realm-export.json" "$APP_DIR/Realms/realm-export.json"
+            rm -rf "$HOME/incoming"
             cd "$APP_DIR"
             docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" -p "${{ secrets.GHCR_PAT }}"
             docker compose --env-file .env -f docker-compose.yaml pull
