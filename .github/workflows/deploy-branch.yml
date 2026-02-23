@@ -82,8 +82,8 @@ jobs:
       - name: Install Dapr CLI
         run: |
           curl -fsSL https://raw.githubusercontent.com/dapr/cli/master/install/install.sh | /bin/bash
-          echo "$HOME/.dapr/bin" >> "$GITHUB_PATH"
-          "$HOME/.dapr/bin/dapr" --version
+          command -v dapr
+          dapr --version
 
       - name: Generate compose from AppHost
         run: |
