@@ -88,6 +88,7 @@
       }
     ],
     "client": {
+      "aspire-dashboard": [],
       "bot-service": [
         {
           "id": "dbe62be3-0fe2-4eee-bbfe-e98eb2315fa0",
@@ -226,8 +227,8 @@
                 "view-authorization",
                 "view-identity-providers",
                 "manage-users",
-                "query-users",
                 "impersonation",
+                "query-users",
                 "manage-realm",
                 "manage-clients",
                 "manage-authorization",
@@ -414,7 +415,18 @@
       ]
     }
   },
-  "groups": [],
+  "groups": [
+    {
+      "id": "23724aff-d74c-4834-8de6-7a3741a9a9fa",
+      "name": "aspire-dashboard",
+      "description": "",
+      "path": "/aspire-dashboard",
+      "subGroups": [],
+      "attributes": {},
+      "realmRoles": [],
+      "clientRoles": {}
+    }
+  ],
   "defaultRole": {
     "id": "77d14e92-5570-4535-918d-43c0169b3943",
     "name": "default-roles-evorsio",
@@ -490,26 +502,11 @@
       "groups": []
     },
     {
-      "id": "d9fbf04f-9988-4c70-9778-a4207cb4b247",
-      "username": "test",
-      "firstName": "Evorsio",
-      "lastName": "Demo",
-      "email": "test@evorsio.com",
-      "attributes": {
-        "locale": [
-          "zh-CN"
-        ]
-      },
+      "id": "f0d5fca3-1ee8-45ac-9f22-c18afe7de6f7",
+      "username": "evorsio",
       "emailVerified": true,
       "enabled": true,
       "totp": false,
-      "credentials": [
-        {
-          "type": "password",
-          "value": "123abc",
-          "temporary": false
-        }
-      ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
@@ -517,7 +514,16 @@
       ],
       "clientRoles": {},
       "notBefore": 0,
-      "groups": []
+      "groups": [
+        "/aspire-dashboard"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${EVORSIO_DEFAULT_USER_PASSWORD}",
+          "temporary": false
+        }
+      ]
     }
   ],
   "scopeMappings": [
@@ -694,6 +700,64 @@
       ]
     },
     {
+      "id": "64b252db-bacb-4da6-8443-6c43a67bf790",
+      "clientId": "aspire-dashboard",
+      "name": "",
+      "description": "",
+      "rootUrl": "${ASPIRE_DASHBOARD_PUBLIC_URL}",
+      "adminUrl": "",
+      "baseUrl": "${ASPIRE_DASHBOARD_PUBLIC_URL}",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${ASPIRE_DASHBOARD_CLIENT_SECRET}",
+      "redirectUris": [
+        "${ASPIRE_DASHBOARD_PUBLIC_URL}/*"
+      ],
+      "webOrigins": [
+        "${ASPIRE_DASHBOARD_PUBLIC_URL}"
+      ],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "publicClient": false,
+      "frontchannelLogout": true,
+      "protocol": "openid-connect",
+      "attributes": {
+        "realm_client": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "client.secret.creation.time": "1771926442",
+        "backchannel.logout.session.required": "true",
+        "standard.token.exchange.enabled": "false",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "backchannel.logout.revoke.offline.tokens": "false",
+        "dpop.bound.access.tokens": "false"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "organization",
+        "microprofile-jwt"
+      ]
+    },
+    {
       "id": "ad2d8e5f-cb7b-4dff-9d4e-200e66fa1ec5",
       "clientId": "bot-service",
       "name": "",
@@ -730,10 +794,10 @@
         "client.secret.creation.time": "1771480737",
         "backchannel.logout.session.required": "true",
         "standard.token.exchange.enabled": "false",
-        "post.logout.redirect.uris": "+",
         "frontchannel.logout.session.required": "true",
-        "oauth2.device.authorization.grant.enabled": "false",
+        "post.logout.redirect.uris": "+",
         "display.on.consent.screen": "false",
+        "oauth2.device.authorization.grant.enabled": "false",
         "backchannel.logout.revoke.offline.tokens": "false",
         "dpop.bound.access.tokens": "false"
       },
@@ -1672,14 +1736,14 @@
         "subComponents": {},
         "config": {
           "allowed-protocol-mapper-types": [
-            "saml-user-property-mapper",
-            "oidc-full-name-mapper",
-            "oidc-usermodel-property-mapper",
             "oidc-sha256-pairwise-sub-mapper",
+            "saml-user-attribute-mapper",
+            "saml-role-list-mapper",
+            "oidc-full-name-mapper",
+            "saml-user-property-mapper",
             "oidc-usermodel-attribute-mapper",
             "oidc-address-mapper",
-            "saml-user-attribute-mapper",
-            "saml-role-list-mapper"
+            "oidc-usermodel-property-mapper"
           ]
         }
       },
@@ -1738,14 +1802,14 @@
         "subComponents": {},
         "config": {
           "allowed-protocol-mapper-types": [
-            "oidc-address-mapper",
-            "oidc-full-name-mapper",
-            "oidc-sha256-pairwise-sub-mapper",
-            "oidc-usermodel-attribute-mapper",
-            "oidc-usermodel-property-mapper",
             "saml-user-attribute-mapper",
             "saml-user-property-mapper",
-            "saml-role-list-mapper"
+            "oidc-full-name-mapper",
+            "oidc-sha256-pairwise-sub-mapper",
+            "saml-role-list-mapper",
+            "oidc-address-mapper",
+            "oidc-usermodel-attribute-mapper",
+            "oidc-usermodel-property-mapper"
           ]
         }
       },

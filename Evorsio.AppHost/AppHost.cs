@@ -44,7 +44,10 @@ var postgresPassword = builder.AddParameter("postgres-password", secret: true);
 var publicBaseUrl = builder.AddParameter("public-base-url");
 var keycloakRealm = builder.AddParameter("keycloak-realm");
 var keycloakHostname = builder.AddParameter("keycloak-hostname");
+var evorsioDefaultUserPassword = builder.AddParameter("evorsio-default-user-password", secret: true);
 var botServiceSecret = builder.AddParameter("bot-service-secret", secret: true);
+var aspireDashboardPublicUrl = builder.AddParameter("aspire-dashboard-public-url");
+var aspireDashboardClientSecret = builder.AddParameter("aspire-dashboard-client-secret", secret: true);
 var blogPublicUrl = builder.AddParameter("blog-public-url");
 
 // Telegram Bot 令牌
@@ -76,8 +79,11 @@ var keycloak = builder.AddContainer("keycloak", "quay.io/keycloak/keycloak", "26
 
     // keycloak client 环境变量占位符配置
     .WithEnvironment("BOT_SERVICE_SECRET", botServiceSecret)
+    .WithEnvironment("ASPIRE_DASHBOARD_PUBLIC_URL", aspireDashboardPublicUrl)
+    .WithEnvironment("ASPIRE_DASHBOARD_CLIENT_SECRET", aspireDashboardClientSecret)
     .WithEnvironment("PUBLIC_BASE_URL", publicBaseUrl)
     .WithEnvironment("KEYCLOAK_HOSTNAME", keycloakHostname)
+    .WithEnvironment("EVORSIO_DEFAULT_USER_PASSWORD", evorsioDefaultUserPassword)
 
     .WithEnvironment("KC_HOSTNAME", keycloakHostname)
     .WithEnvironment("KC_DB", "postgres")

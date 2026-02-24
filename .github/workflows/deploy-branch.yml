@@ -57,8 +57,8 @@ jobs:
             echo "::error::Evorsio.AppHost/aspire-output/docker-compose.yaml not found. Please generate and commit aspire-output from local before deploy."
             exit 1
           fi
-          if [ ! -f "$OUTPUT_DIR/docker-compose.dapr.yaml" ]; then
-            echo "::error::Evorsio.AppHost/aspire-output/docker-compose.dapr.yaml not found."
+          if [ ! -f "$OUTPUT_DIR/docker-compose.override.yaml" ]; then
+            echo "::error::Evorsio.AppHost/aspire-output/docker-compose.override.yaml not found."
             exit 1
           fi
           if [ ! -f "$OUTPUT_DIR/.env" ]; then
@@ -80,6 +80,9 @@ jobs:
           cp -r "Evorsio.AppHost/DatabaseInit/." "$OUTPUT_DIR/DatabaseInit/"
 
           cat > "$OUTPUT_DIR/.env" <<EOF
+          EVORSIO_DEFAULT_USER_PASSWORD=${{ secrets.EVORSIO_DEFAULT_USER_PASSWORD }}
+          ASPIRE_DASHBOARD_PUBLIC_URL=${{ vars.ASPIRE_DASHBOARD_PUBLIC_URL }}
+          ASPIRE_DASHBOARD_CLIENT_SECRET=${{ secrets.ASPIRE_DASHBOARD_CLIENT_SECRET}}
           BLOG_PUBLIC_URL=${{ vars.BLOG_PUBLIC_URL }}
           BOT_SERVICE_PORT=${{ vars.BOT_SERVICE_PORT }}
           BOT_SERVICE_SECRET=${{ secrets.BOT_SERVICE_SECRET }}
@@ -131,7 +134,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          source: "Evorsio.AppHost/aspire-output/docker-compose.yaml,Evorsio.AppHost/aspire-output/docker-compose.dapr.yaml,Evorsio.AppHost/aspire-output/.env,Evorsio.AppHost/aspire-output/realm-export.json,Evorsio.AppHost/aspire-output/Nginx,Evorsio.AppHost/aspire-output/DatabaseInit,Evorsio.AppHost/aspire-output/components"
+          source: "Evorsio.AppHost/aspire-output/docker-compose.yaml,Evorsio.AppHost/aspire-output/docker-compose.override.yaml,Evorsio.AppHost/aspire-output/.env,Evorsio.AppHost/aspire-output/realm-export.json,Evorsio.AppHost/aspire-output/Nginx,Evorsio.AppHost/aspire-output/DatabaseInit,Evorsio.AppHost/aspire-output/components"
           target: "~/incoming"
           overwrite: true
 
@@ -176,7 +179,7 @@ jobs:
             APP_DIR="$HOME/$APP_SUBDIR"
             mkdir -p "$APP_DIR/Realms" "$APP_DIR/Nginx" "$APP_DIR/DatabaseInit" "$APP_DIR/components"
             mv "$HOME/incoming/Evorsio.AppHost/aspire-output/docker-compose.yaml" "$APP_DIR/docker-compose.yaml"
-            mv "$HOME/incoming/Evorsio.AppHost/aspire-output/docker-compose.dapr.yaml" "$APP_DIR/docker-compose.dapr.yaml"
+            mv "$HOME/incoming/Evorsio.AppHost/aspire-output/docker-compose.override.yaml" "$APP_DIR/docker-compose.override.yaml"
             mv "$HOME/incoming/Evorsio.AppHost/aspire-output/.env" "$APP_DIR/.env"
             mv "$HOME/incoming/Evorsio.AppHost/aspire-output/realm-export.json" "$APP_DIR/Realms/realm-export.json"
             rm -rf "$APP_DIR/DatabaseInit"
@@ -256,6 +259,6 @@ jobs:
             pull_with_retry "$BOT_SERVICE_IMAGE"
             pull_with_retry "$USER_SERVICE_IMAGE"
 
-            docker compose --env-file .env -f docker-compose.yaml -f docker-compose.dapr.yaml up -d --remove-orphans
-            docker compose --env-file .env -f docker-compose.yaml -f docker-compose.dapr.yaml up -d --force-recreate nginx
-            docker compose --env-file .env -f docker-compose.yaml -f docker-compose.dapr.yaml ps
+            docker compose --env-file .env -f docker-compose.yaml -f docker-compose.override.yaml up -d --remove-orphans
+            docker compose --env-file .env -f docker-compose.yaml -f docker-compose.override.yaml up -d --force-recreate nginx
+            docker compose --env-file .env -f docker-compose.yaml -f docker-compose.override.yaml ps
