@@ -86,7 +86,12 @@ jobs:
 
       - name: Install Dapr CLI
         run: |
-          curl -fsSL https://raw.githubusercontent.com/dapr/cli/master/install/install.sh | /bin/bash
+          DAPR_CLI_VERSION="1.16.0"
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL -o /tmp/dapr.tar.gz "https://github.com/dapr/cli/releases/download/v${DAPR_CLI_VERSION}/dapr_linux_amd64.tar.gz"
+          tar -xzf /tmp/dapr.tar.gz -C /tmp
+          install -m 0755 /tmp/dapr "$HOME/.local/bin/dapr"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           command -v dapr
           dapr --version
 
