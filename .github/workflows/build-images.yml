@@ -1,0 +1,76 @@
+name: build-images
+
+on:
+  push:
+    branches:
+      - deploy
+    paths:
+      - Evorsio.BotService/**
+      - Evorsio.UserService/**
+      - Evorsio.ServiceDefaults/**
+      - .github/workflows/build-images.yml
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  BOT_IMAGE_NAME: ${{ github.repository_owner }}/evorsio-bot-service
+  USER_IMAGE_NAME: ${{ github.repository_owner }}/evorsio-user-service
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push bot-service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Evorsio.BotService/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BOT_IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.BOT_IMAGE_NAME }}:deploy-latest
+
+      - name: Build and push user-service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Evorsio.UserService/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.USER_IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.USER_IMAGE_NAME }}:deploy-latest
+
+      - name: Setup crane for cleanup
+        if: ${{ failure() }}
+        uses: imjasonh/setup-crane@v0.4
+
+      - name: Cleanup failed build image tags
+        if: ${{ failure() }}
+        env:
+          CRANE_USERNAME: ${{ github.actor }}
+          CRANE_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Build failed, deleting image tags for this run..."
+          crane delete "${{ env.REGISTRY }}/${{ env.BOT_IMAGE_NAME }}:${{ github.sha }}" || true
+          crane delete "${{ env.REGISTRY }}/${{ env.USER_IMAGE_NAME }}:${{ github.sha }}" || true

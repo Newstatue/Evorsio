@@ -122,6 +122,8 @@ var botService = builder.AddProject<Projects.Evorsio_BotService>("bot-service")
 var ghost = builder.AddContainer("ghost", "ghost", "5-alpine")
     .WithEnvironment("url", blogPublicUrl)
     .WithEnvironment("NODE_ENV", builder.Environment.IsProduction() ? "production" : "development")
+    .WithEnvironment("database__client", "sqlite3")
+    .WithEnvironment("database__connection__filename", "content/data/ghost.db")
     .WithEndpoint(targetPort: 2368, scheme: "http", name: "http")
     .WithOtlpExporter();
 

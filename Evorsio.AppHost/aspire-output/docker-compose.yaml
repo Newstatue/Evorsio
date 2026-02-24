@@ -154,6 +154,8 @@ services:
     environment:
       url: "${BLOG_PUBLIC_URL}"
       NODE_ENV: "production"
+      database__client: "sqlite3"
+      database__connection__filename: "content/data/ghost.db"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://compose-dashboard:18889"
       OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
       OTEL_SERVICE_NAME: "ghost"
