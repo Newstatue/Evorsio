@@ -7,7 +7,6 @@ on:
     paths:
       - Evorsio.AppHost/**
       - .github/workflows/deploy-branch.yml
-      - .github/workflows/build-images.yml
   workflow_run:
     workflows:
       - build-images
@@ -27,6 +26,10 @@ env:
   REGISTRY: ghcr.io
   BOT_IMAGE_NAME: ${{ github.repository_owner }}/evorsio-bot-service
   USER_IMAGE_NAME: ${{ github.repository_owner }}/evorsio-user-service
+
+concurrency:
+  group: deploy-branch-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -159,6 +162,12 @@ jobs:
             . ./.env
             set +a
 
+            export KEYCLOAK_BINDMOUNT_0="$APP_DIR/Realms"
+            export POSTGRES_BINDMOUNT_0="$APP_DIR/DatabaseInit"
+            export NGINX_BINDMOUNT_0="$APP_DIR/Nginx/nginx.conf"
+            export NGINX_BINDMOUNT_1="$APP_DIR/Nginx/certs"
+            export NGINX_BINDMOUNT_2="$APP_DIR/Nginx/acme-challenge"
+
             cleanup_on_error() {
               echo "Deployment failed, removing current release images..."
               if [ -n "${BOT_SERVICE_IMAGE:-}" ]; then
@@ -174,4 +183,5 @@ jobs:
             docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" -p "${{ secrets.GHCR_PAT }}"
             docker compose --env-file .env -f docker-compose.yaml pull
             docker compose --env-file .env -f docker-compose.yaml up -d --remove-orphans
+            docker compose --env-file .env -f docker-compose.yaml up -d --force-recreate nginx
             docker compose --env-file .env -f docker-compose.yaml ps
