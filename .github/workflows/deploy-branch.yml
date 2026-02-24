@@ -31,6 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -121,6 +122,30 @@ jobs:
           source: "Evorsio.AppHost/aspire-output/docker-compose.yaml,Evorsio.AppHost/aspire-output/.env,Evorsio.AppHost/aspire-output/realm-export.json,Evorsio.AppHost/aspire-output/Nginx,Evorsio.AppHost/aspire-output/DatabaseInit"
           target: "~/incoming"
           overwrite: true
+
+      - name: Log in to GHCR for validation
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Validate images exist in GHCR
+        run: |
+          set -e
+          source "Evorsio.AppHost/aspire-output/.env"
+
+          check_image() {
+            IMAGE="$1"
+            echo "Validating manifest: $IMAGE"
+            if ! docker manifest inspect "$IMAGE" >/dev/null 2>&1; then
+              echo "::error::Image manifest not found in GHCR: $IMAGE"
+              exit 1
+            fi
+          }
+
+          check_image "$BOT_SERVICE_IMAGE"
+          check_image "$USER_SERVICE_IMAGE"
 
       - name: Run deployment on server
         uses: appleboy/ssh-action@v1
