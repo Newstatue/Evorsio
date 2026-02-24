@@ -1,3 +1,2 @@
 CREATE DATABASE userdb;
 CREATE DATABASE keycloakdb;
-CREATE DATABASE directusdb;

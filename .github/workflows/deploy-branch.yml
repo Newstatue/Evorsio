@@ -74,54 +74,66 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.0.x
-
-      - name: Install Aspire CLI
-        run: |
-          dotnet tool install --global Aspire.Cli --prerelease
-          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
-
-      - name: Install Dapr CLI
-        run: |
-          DAPR_CLI_VERSION="1.16.0"
-          mkdir -p "$HOME/.local/bin"
-          curl -fsSL -o /tmp/dapr.tar.gz "https://github.com/dapr/cli/releases/download/v${DAPR_CLI_VERSION}/dapr_linux_amd64.tar.gz"
-          tar -xzf /tmp/dapr.tar.gz -C /tmp
-          install -m 0755 /tmp/dapr "$HOME/.local/bin/dapr"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          command -v dapr
-          dapr --version
-
-      - name: Generate compose from AppHost
-        run: |
-          aspire publish --project "Evorsio.AppHost/Evorsio.AppHost.csproj" -o "aspire-publish-output" --environment Production --non-interactive
-
       - name: Prepare deployment files
         run: |
-          mkdir -p "aspire-publish-output/Nginx" "aspire-publish-output/DatabaseInit"
-          cp "Evorsio.AppHost/Realms/realm-export.json" "aspire-publish-output/realm-export.json"
-          cp -r "Evorsio.AppHost/Nginx/." "aspire-publish-output/Nginx/"
-          cp -r "Evorsio.AppHost/DatabaseInit/." "aspire-publish-output/DatabaseInit/"
-          printf "%s" "${{ secrets.DEPLOY_ENV_FILE }}" > "aspire-publish-output/.env"
-          {
-            echo
-            echo "BOT_SERVICE_IMAGE=${{ needs.build-and-push.outputs.bot_image }}"
-            echo "USER_SERVICE_IMAGE=${{ needs.build-and-push.outputs.user_image }}"
-            echo "POSTGRES_BINDMOUNT_0=./DatabaseInit"
-            echo "NGINX_BINDMOUNT_0=./Nginx/nginx.conf"
-            echo "NGINX_BINDMOUNT_1=./Nginx/certs"
-            echo "NGINX_BINDMOUNT_2=./Nginx/acme-challenge"
-          } >> "aspire-publish-output/.env"
+          OUTPUT_DIR="Evorsio.AppHost/aspire-output"
 
-          if ! grep -qE '^BOT_SERVICE_IMAGE=.+$' "aspire-publish-output/.env"; then
+          if [ ! -f "$OUTPUT_DIR/docker-compose.yaml" ]; then
+            echo "::error::Evorsio.AppHost/aspire-output/docker-compose.yaml not found. Please generate and commit aspire-output from local before deploy."
+            exit 1
+          fi
+          if [ ! -f "$OUTPUT_DIR/.env" ]; then
+            echo "::error::Evorsio.AppHost/aspire-output/.env not found. Please generate and commit aspire-output from local before deploy."
+            exit 1
+          fi
+
+          mkdir -p "$OUTPUT_DIR/Nginx" "$OUTPUT_DIR/DatabaseInit"
+          cp "Evorsio.AppHost/Realms/realm-export.json" "$OUTPUT_DIR/realm-export.json"
+          cp -r "Evorsio.AppHost/Nginx/." "$OUTPUT_DIR/Nginx/"
+          cp -r "Evorsio.AppHost/DatabaseInit/." "$OUTPUT_DIR/DatabaseInit/"
+
+          cat > "$OUTPUT_DIR/.env" <<EOF
+          BLOG_PUBLIC_URL=${{ vars.BLOG_PUBLIC_URL }}
+          BOT_SERVICE_PORT=${{ vars.BOT_SERVICE_PORT }}
+          BOT_SERVICE_SECRET=${{ secrets.BOT_SERVICE_SECRET }}
+          KEYCLOAK_ADMIN_PASSWORD=${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+          KEYCLOAK_ADMIN_USERNAME=${{ vars.KEYCLOAK_ADMIN_USERNAME }}
+          KEYCLOAK_BINDMOUNT_0=./Realms
+          KEYCLOAK_HOSTNAME=${{ vars.KEYCLOAK_HOSTNAME }}
+          KEYCLOAK_REALM=${{ vars.KEYCLOAK_REALM }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_USERNAME=${{ vars.POSTGRES_USERNAME }}
+          PUBLIC_BASE_URL=${{ vars.PUBLIC_BASE_URL }}
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_WEBHOOK_SECRET=${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+          USER_SERVICE_PORT=${{ vars.USER_SERVICE_PORT }}
+          BOT_SERVICE_IMAGE=${{ needs.build-and-push.outputs.bot_image }}
+          USER_SERVICE_IMAGE=${{ needs.build-and-push.outputs.user_image }}
+          POSTGRES_BINDMOUNT_0=./DatabaseInit
+          NGINX_BINDMOUNT_0=./Nginx/nginx.conf
+          NGINX_BINDMOUNT_1=./Nginx/certs
+          NGINX_BINDMOUNT_2=./Nginx/acme-challenge
+          EOF
+
+          if ! grep -qE '^BOT_SERVICE_IMAGE=.+$' "$OUTPUT_DIR/.env"; then
             echo "::error::BOT_SERVICE_IMAGE is missing in generated .env"
             exit 1
           fi
-          if ! grep -qE '^USER_SERVICE_IMAGE=.+$' "aspire-publish-output/.env"; then
+          if ! grep -qE '^USER_SERVICE_IMAGE=.+$' "$OUTPUT_DIR/.env"; then
             echo "::error::USER_SERVICE_IMAGE is missing in generated .env"
+            exit 1
+          fi
+          if ! grep -qE '^BLOG_PUBLIC_URL=.+$' "$OUTPUT_DIR/.env"; then
+            echo "::error::BLOG_PUBLIC_URL is missing in generated .env"
+            exit 1
+          fi
+          if ! grep -qE '^POSTGRES_PASSWORD=.+$' "$OUTPUT_DIR/.env"; then
+            echo "::error::POSTGRES_PASSWORD is missing in generated .env"
+            exit 1
+          fi
+          if ! grep -qE '^REDIS_PASSWORD=.+$' "$OUTPUT_DIR/.env"; then
+            echo "::error::REDIS_PASSWORD is missing in generated .env"
             exit 1
           fi
 
@@ -132,7 +144,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          source: "aspire-publish-output/docker-compose.yaml,aspire-publish-output/.env,aspire-publish-output/realm-export.json,aspire-publish-output/Nginx,aspire-publish-output/DatabaseInit"
+          source: "Evorsio.AppHost/aspire-output/docker-compose.yaml,Evorsio.AppHost/aspire-output/.env,Evorsio.AppHost/aspire-output/realm-export.json,Evorsio.AppHost/aspire-output/Nginx,Evorsio.AppHost/aspire-output/DatabaseInit"
           target: "~/incoming"
           overwrite: true
 
@@ -152,14 +164,14 @@ jobs:
             fi
             APP_DIR="$HOME/$APP_SUBDIR"
             mkdir -p "$APP_DIR/Realms" "$APP_DIR/Nginx" "$APP_DIR/DatabaseInit"
-            mv "$HOME/incoming/aspire-publish-output/docker-compose.yaml" "$APP_DIR/docker-compose.yaml"
-            mv "$HOME/incoming/aspire-publish-output/.env" "$APP_DIR/.env"
-            mv "$HOME/incoming/aspire-publish-output/realm-export.json" "$APP_DIR/Realms/realm-export.json"
+            mv "$HOME/incoming/Evorsio.AppHost/aspire-output/docker-compose.yaml" "$APP_DIR/docker-compose.yaml"
+            mv "$HOME/incoming/Evorsio.AppHost/aspire-output/.env" "$APP_DIR/.env"
+            mv "$HOME/incoming/Evorsio.AppHost/aspire-output/realm-export.json" "$APP_DIR/Realms/realm-export.json"
             rm -rf "$APP_DIR/DatabaseInit"
-            mv "$HOME/incoming/aspire-publish-output/DatabaseInit" "$APP_DIR/DatabaseInit"
-            mv "$HOME/incoming/aspire-publish-output/Nginx/nginx.conf" "$APP_DIR/Nginx/nginx.conf"
+            mv "$HOME/incoming/Evorsio.AppHost/aspire-output/DatabaseInit" "$APP_DIR/DatabaseInit"
+            mv "$HOME/incoming/Evorsio.AppHost/aspire-output/Nginx/nginx.conf" "$APP_DIR/Nginx/nginx.conf"
             rm -rf "$APP_DIR/Nginx/acme-challenge"
-            mv "$HOME/incoming/aspire-publish-output/Nginx/acme-challenge" "$APP_DIR/Nginx/acme-challenge"
+            mv "$HOME/incoming/Evorsio.AppHost/aspire-output/Nginx/acme-challenge" "$APP_DIR/Nginx/acme-challenge"
             mkdir -p "$APP_DIR/Nginx/certs"
             rm -rf "$HOME/incoming"
             cd "$APP_DIR"
@@ -182,5 +194,5 @@ jobs:
 
             docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" -p "${{ secrets.GHCR_PAT }}"
             docker compose --env-file .env -f docker-compose.yaml pull
-            docker compose --env-file .env -f docker-compose.yaml up -d
+            docker compose --env-file .env -f docker-compose.yaml up -d --remove-orphans
             docker compose --env-file .env -f docker-compose.yaml ps
