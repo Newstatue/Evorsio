@@ -128,9 +128,6 @@ var botService = builder.AddProject<Projects.Evorsio_BotService>("bot-service")
 
 var directus = builder.AddContainer("directus", "directus/directus", "11.1.1")
     .WithEndpoint(port: 8055, targetPort: 8055, scheme: "http", name: "http", isExternal: true)
-    .WithBindMount("./Directus/uploads", "/directus/uploads")
-    .WithBindMount("./Directus/extensions", "/directus/extensions")
-    .WithBindMount("./Directus/templates", "/directus/templates")
     .WithEnvironment("SECRET", directusSecret)
     .WithEnvironment("DB_CLIENT", "pg")
     .WithEnvironment("DB_HOST", postgresHost)
@@ -142,7 +139,6 @@ var directus = builder.AddContainer("directus", "directus/directus", "11.1.1")
     .WithEnvironment("CACHE_AUTO_PURGE", "true")
     .WithEnvironment("CACHE_STORE", "redis")
     .WithEnvironment("REDIS_HOST", redisHost)
-    .WithEnvironment("REDIS_PORT", redisPlainPort)
     .WithEnvironment("REDIS_USERNAME", "default")
     .WithEnvironment("ADMIN_EMAIL", directusAdminEmail)
     .WithEnvironment("ADMIN_PASSWORD", directusAdminPassword)
@@ -161,9 +157,18 @@ if (redis.Resource.PasswordParameter is not null)
 if (builder.Environment.IsProduction())
 {
     directus
+        .WithEnvironment("REDIS_PORT", redis.Resource.PrimaryEndpoint.Property(EndpointProperty.Port))
         .WithVolume("directus-uploads", "/directus/uploads")
         .WithVolume("directus-extensions", "/directus/extensions")
         .WithVolume("directus-templates", "/directus/templates");
+}
+else
+{
+    directus
+        .WithEnvironment("REDIS_PORT", redisPlainPort)
+        .WithBindMount("./Directus/uploads", "/directus/uploads")
+        .WithBindMount("./Directus/extensions", "/directus/extensions")
+        .WithBindMount("./Directus/templates", "/directus/templates");
 }
 
 var gateway = builder.AddYarp("gateway")
