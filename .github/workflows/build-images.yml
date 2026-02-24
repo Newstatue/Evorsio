@@ -7,6 +7,7 @@ on:
     paths:
       - Evorsio.BotService/**
       - Evorsio.UserService/**
+      - Evorsio.AppHost/**
       - Evorsio.ServiceDefaults/**
       - .github/workflows/build-images.yml
   workflow_dispatch:
@@ -26,6 +27,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect changed paths
+        if: ${{ github.event_name == 'push' }}
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            bot:
+              - 'Evorsio.BotService/**'
+            user:
+              - 'Evorsio.UserService/**'
+            full:
+              - 'Evorsio.AppHost/**'
+              - 'Evorsio.ServiceDefaults/**'
+              - '.github/workflows/build-images.yml'
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -40,6 +56,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push bot-service
+        if: ${{ github.event_name == 'workflow_dispatch' || steps.changes.outputs.bot == 'true' || steps.changes.outputs.full == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -51,6 +68,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.BOT_IMAGE_NAME }}:deploy-latest
 
       - name: Build and push user-service
+        if: ${{ github.event_name == 'workflow_dispatch' || steps.changes.outputs.user == 'true' || steps.changes.outputs.full == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -62,7 +80,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.USER_IMAGE_NAME }}:deploy-latest
 
       - name: Keep only latest bot-service image version
-        if: ${{ success() }}
+        if: ${{ success() && (github.event_name == 'workflow_dispatch' || steps.changes.outputs.bot == 'true' || steps.changes.outputs.full == 'true') }}
         uses: actions/delete-package-versions@v5
         with:
           package-name: evorsio-bot-service
@@ -70,7 +88,7 @@ jobs:
           min-versions-to-keep: 1
 
       - name: Keep only latest user-service image version
-        if: ${{ success() }}
+        if: ${{ success() && (github.event_name == 'workflow_dispatch' || steps.changes.outputs.user == 'true' || steps.changes.outputs.full == 'true') }}
         uses: actions/delete-package-versions@v5
         with:
           package-name: evorsio-user-service

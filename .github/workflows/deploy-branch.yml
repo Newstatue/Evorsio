@@ -1,12 +1,6 @@
 name: deploy-branch
 
 on:
-  push:
-    branches:
-      - deploy
-    paths:
-      - Evorsio.AppHost/**
-      - .github/workflows/deploy-branch.yml
   workflow_run:
     workflows:
       - build-images
@@ -33,7 +27,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -48,8 +42,6 @@ jobs:
           OUTPUT_DIR="Evorsio.AppHost/aspire-output"
 
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            IMAGE_TAG="${{ github.event.workflow_run.head_sha }}"
-          elif [ "${{ github.event_name }}" = "push" ]; then
             IMAGE_TAG="deploy-latest"
           else
             IMAGE_TAG="${{ inputs.image_tag }}"
