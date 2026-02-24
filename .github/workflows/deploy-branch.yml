@@ -163,17 +163,53 @@ jobs:
             cleanup_on_error() {
               echo "Deployment failed, removing current release images..."
               if [ -n "${BOT_SERVICE_IMAGE:-}" ]; then
-                docker image rm -f "$BOT_SERVICE_IMAGE" || true
+                if docker image inspect "$BOT_SERVICE_IMAGE" >/dev/null 2>&1; then
+                  docker image rm -f "$BOT_SERVICE_IMAGE" || true
+                else
+                  echo "BOT_SERVICE_IMAGE not found locally, skip remove"
+                fi
               fi
               if [ -n "${USER_SERVICE_IMAGE:-}" ]; then
-                docker image rm -f "$USER_SERVICE_IMAGE" || true
+                if docker image inspect "$USER_SERVICE_IMAGE" >/dev/null 2>&1; then
+                  docker image rm -f "$USER_SERVICE_IMAGE" || true
+                else
+                  echo "USER_SERVICE_IMAGE not found locally, skip remove"
+                fi
               fi
             }
 
             trap cleanup_on_error ERR
 
-            docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" -p "${{ secrets.GHCR_PAT }}"
-            docker compose --env-file .env -f docker-compose.yaml pull
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
+            pull_with_retry() {
+              IMAGE="$1"
+              MAX_RETRIES=5
+              RETRY=1
+
+              while [ "$RETRY" -le "$MAX_RETRIES" ]; do
+                echo "Pulling $IMAGE (attempt $RETRY/$MAX_RETRIES)..."
+                if docker pull "$IMAGE"; then
+                  echo "Pulled $IMAGE successfully"
+                  return 0
+                fi
+
+                if [ "$RETRY" -lt "$MAX_RETRIES" ]; then
+                  SLEEP_SECONDS=$((RETRY * 5))
+                  echo "Pull failed, retry in ${SLEEP_SECONDS}s..."
+                  sleep "$SLEEP_SECONDS"
+                fi
+
+                RETRY=$((RETRY + 1))
+              done
+
+              echo "::error::Failed to pull image after retries: $IMAGE"
+              return 1
+            }
+
+            pull_with_retry "$BOT_SERVICE_IMAGE"
+            pull_with_retry "$USER_SERVICE_IMAGE"
+
             docker compose --env-file .env -f docker-compose.yaml up -d --remove-orphans
             docker compose --env-file .env -f docker-compose.yaml up -d --force-recreate nginx
             docker compose --env-file .env -f docker-compose.yaml ps
