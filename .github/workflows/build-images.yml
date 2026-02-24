@@ -61,6 +61,22 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.USER_IMAGE_NAME }}:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ env.USER_IMAGE_NAME }}:deploy-latest
 
+      - name: Keep only latest bot-service image version
+        if: ${{ success() }}
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: evorsio-bot-service
+          package-type: container
+          min-versions-to-keep: 1
+
+      - name: Keep only latest user-service image version
+        if: ${{ success() }}
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: evorsio-user-service
+          package-type: container
+          min-versions-to-keep: 1
+
       - name: Setup crane for cleanup
         if: ${{ failure() }}
         uses: imjasonh/setup-crane@v0.4
