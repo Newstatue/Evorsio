@@ -38,11 +38,13 @@ jobs:
             set +a
 
             DB_EXISTS=$(docker compose --env-file .env -f docker-compose.yaml exec -T postgres \
+              env PGPASSWORD="$POSTGRES_PASSWORD" \
               psql -U "$POSTGRES_USERNAME" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='directusdb'" | tr -d '[:space:]')
 
             if [ "$DB_EXISTS" != "1" ]; then
               echo "directusdb missing, creating..."
               docker compose --env-file .env -f docker-compose.yaml exec -T postgres \
+                env PGPASSWORD="$POSTGRES_PASSWORD" \
                 psql -U "$POSTGRES_USERNAME" -d postgres -c "CREATE DATABASE directusdb OWNER \"$POSTGRES_USERNAME\";"
             fi
 
