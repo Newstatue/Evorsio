@@ -3,7 +3,7 @@ using Microsoft.Extensions.Hosting;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddDapr();
+var dapr = builder.AddDapr();
 
 var compose = builder.AddDockerComposeEnvironment("compose")
     .WithDashboard(enabled: true);
@@ -21,12 +21,12 @@ var redisDaprHost = redis.Resource.PrimaryEndpoint.Property(EndpointProperty.Hos
 var redisDaprPort = redis.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
 
 // Dapr Redis 组件配置 - 使用 Redis 主端点 TLS（发布安全）
-var stateStore = builder.AddDaprComponent("statestore", "state.redis")
+var stateStore = dapr.AddDaprComponent("statestore", "state.redis")
     .WithMetadata("redisHost", ReferenceExpression.Create($"{redisDaprHost}:{redisDaprPort}"))
     .WithMetadata("enableTLS", "true")
     .WaitFor(redis);
 
-var pubSub = builder.AddDaprComponent("pubsub", "pubsub.redis")
+var pubSub = dapr.AddDaprComponent("pubsub", "pubsub.redis")
     .WithMetadata("redisHost", ReferenceExpression.Create($"{redisDaprHost}:{redisDaprPort}"))
     .WithMetadata("enableTLS", "true")
     .WaitFor(redis);

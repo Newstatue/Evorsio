@@ -1,0 +1,17 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub
+spec:
+  type: pubsub.redis
+  version: v1
+  metadata:
+    - name: redisHost
+      value: redis:6379
+    - name: redisPassword
+      value: __REDIS_PASSWORD__
+    - name: enableTLS
+      value: "false"
+scopes:
+  - bot-service
+  - user-service

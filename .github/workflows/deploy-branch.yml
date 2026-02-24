@@ -57,8 +57,20 @@ jobs:
             echo "::error::Evorsio.AppHost/aspire-output/docker-compose.yaml not found. Please generate and commit aspire-output from local before deploy."
             exit 1
           fi
+          if [ ! -f "$OUTPUT_DIR/docker-compose.dapr.yaml" ]; then
+            echo "::error::Evorsio.AppHost/aspire-output/docker-compose.dapr.yaml not found."
+            exit 1
+          fi
           if [ ! -f "$OUTPUT_DIR/.env" ]; then
             echo "::error::Evorsio.AppHost/aspire-output/.env not found. Please generate and commit aspire-output from local before deploy."
+            exit 1
+          fi
+          if [ ! -f "$OUTPUT_DIR/components/statestore.yaml" ]; then
+            echo "::error::Evorsio.AppHost/aspire-output/components/statestore.yaml not found."
+            exit 1
+          fi
+          if [ ! -f "$OUTPUT_DIR/components/pubsub.yaml" ]; then
+            echo "::error::Evorsio.AppHost/aspire-output/components/pubsub.yaml not found."
             exit 1
           fi
 
@@ -119,7 +131,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          source: "Evorsio.AppHost/aspire-output/docker-compose.yaml,Evorsio.AppHost/aspire-output/.env,Evorsio.AppHost/aspire-output/realm-export.json,Evorsio.AppHost/aspire-output/Nginx,Evorsio.AppHost/aspire-output/DatabaseInit"
+          source: "Evorsio.AppHost/aspire-output/docker-compose.yaml,Evorsio.AppHost/aspire-output/docker-compose.dapr.yaml,Evorsio.AppHost/aspire-output/.env,Evorsio.AppHost/aspire-output/realm-export.json,Evorsio.AppHost/aspire-output/Nginx,Evorsio.AppHost/aspire-output/DatabaseInit,Evorsio.AppHost/aspire-output/components"
           target: "~/incoming"
           overwrite: true
 
@@ -162,12 +174,15 @@ jobs:
               exit 1
             fi
             APP_DIR="$HOME/$APP_SUBDIR"
-            mkdir -p "$APP_DIR/Realms" "$APP_DIR/Nginx" "$APP_DIR/DatabaseInit"
+            mkdir -p "$APP_DIR/Realms" "$APP_DIR/Nginx" "$APP_DIR/DatabaseInit" "$APP_DIR/components"
             mv "$HOME/incoming/Evorsio.AppHost/aspire-output/docker-compose.yaml" "$APP_DIR/docker-compose.yaml"
+            mv "$HOME/incoming/Evorsio.AppHost/aspire-output/docker-compose.dapr.yaml" "$APP_DIR/docker-compose.dapr.yaml"
             mv "$HOME/incoming/Evorsio.AppHost/aspire-output/.env" "$APP_DIR/.env"
             mv "$HOME/incoming/Evorsio.AppHost/aspire-output/realm-export.json" "$APP_DIR/Realms/realm-export.json"
             rm -rf "$APP_DIR/DatabaseInit"
             mv "$HOME/incoming/Evorsio.AppHost/aspire-output/DatabaseInit" "$APP_DIR/DatabaseInit"
+            rm -rf "$APP_DIR/components"
+            mv "$HOME/incoming/Evorsio.AppHost/aspire-output/components" "$APP_DIR/components"
             mv "$HOME/incoming/Evorsio.AppHost/aspire-output/Nginx/nginx.conf" "$APP_DIR/Nginx/nginx.conf"
             rm -rf "$APP_DIR/Nginx/acme-challenge"
             mv "$HOME/incoming/Evorsio.AppHost/aspire-output/Nginx/acme-challenge" "$APP_DIR/Nginx/acme-challenge"
@@ -184,6 +199,12 @@ jobs:
             export NGINX_BINDMOUNT_0="$APP_DIR/Nginx/nginx.conf"
             export NGINX_BINDMOUNT_1="$APP_DIR/Nginx/certs"
             export NGINX_BINDMOUNT_2="$APP_DIR/Nginx/acme-challenge"
+
+            ESCAPED_REDIS_PASSWORD=$(printf '%s' "$REDIS_PASSWORD" | sed -e 's/[\\/&]/\\\\&/g')
+            sed "s/__REDIS_PASSWORD__/${ESCAPED_REDIS_PASSWORD}/g" "$APP_DIR/components/statestore.yaml" > "$APP_DIR/components/statestore.rendered.yaml"
+            sed "s/__REDIS_PASSWORD__/${ESCAPED_REDIS_PASSWORD}/g" "$APP_DIR/components/pubsub.yaml" > "$APP_DIR/components/pubsub.rendered.yaml"
+            mv "$APP_DIR/components/statestore.rendered.yaml" "$APP_DIR/components/statestore.yaml"
+            mv "$APP_DIR/components/pubsub.rendered.yaml" "$APP_DIR/components/pubsub.yaml"
 
             cleanup_on_error() {
               echo "Deployment failed, removing current release images..."
@@ -235,6 +256,6 @@ jobs:
             pull_with_retry "$BOT_SERVICE_IMAGE"
             pull_with_retry "$USER_SERVICE_IMAGE"
 
-            docker compose --env-file .env -f docker-compose.yaml up -d --remove-orphans
-            docker compose --env-file .env -f docker-compose.yaml up -d --force-recreate nginx
-            docker compose --env-file .env -f docker-compose.yaml ps
+            docker compose --env-file .env -f docker-compose.yaml -f docker-compose.dapr.yaml up -d --remove-orphans
+            docker compose --env-file .env -f docker-compose.yaml -f docker-compose.dapr.yaml up -d --force-recreate nginx
+            docker compose --env-file .env -f docker-compose.yaml -f docker-compose.dapr.yaml ps

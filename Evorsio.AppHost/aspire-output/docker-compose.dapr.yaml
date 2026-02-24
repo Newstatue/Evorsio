@@ -1,0 +1,68 @@
+services:
+  bot-service:
+    environment:
+      DAPR_GRPC_ENDPOINT: "http://bot-service-dapr:50001"
+      DAPR_HTTP_ENDPOINT: "http://bot-service-dapr:3500"
+
+  user-service:
+    environment:
+      DAPR_GRPC_ENDPOINT: "http://user-service-dapr:50001"
+      DAPR_HTTP_ENDPOINT: "http://user-service-dapr:3500"
+
+  bot-service-dapr:
+    image: "daprio/daprd:1.16.9"
+    command:
+      - "./daprd"
+      - "--app-id"
+      - "bot-service"
+      - "--app-port"
+      - "${BOT_SERVICE_PORT}"
+      - "--app-channel-address"
+      - "bot-service"
+      - "--dapr-http-port"
+      - "3500"
+      - "--dapr-grpc-port"
+      - "50001"
+      - "--resources-path"
+      - "/components"
+    volumes:
+      - type: "bind"
+        source: "./components"
+        target: "/components"
+        read_only: true
+    depends_on:
+      bot-service:
+        condition: "service_started"
+      redis:
+        condition: "service_started"
+    networks:
+      - "aspire"
+
+  user-service-dapr:
+    image: "daprio/daprd:1.16.9"
+    command:
+      - "./daprd"
+      - "--app-id"
+      - "user-service"
+      - "--app-port"
+      - "${USER_SERVICE_PORT}"
+      - "--app-channel-address"
+      - "user-service"
+      - "--dapr-http-port"
+      - "3500"
+      - "--dapr-grpc-port"
+      - "50001"
+      - "--resources-path"
+      - "/components"
+    volumes:
+      - type: "bind"
+        source: "./components"
+        target: "/components"
+        read_only: true
+    depends_on:
+      user-service:
+        condition: "service_started"
+      redis:
+        condition: "service_started"
+    networks:
+      - "aspire"
