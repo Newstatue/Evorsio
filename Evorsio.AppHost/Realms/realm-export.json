@@ -227,8 +227,8 @@
                 "view-authorization",
                 "view-identity-providers",
                 "manage-users",
-                "impersonation",
                 "query-users",
+                "impersonation",
                 "manage-realm",
                 "manage-clients",
                 "manage-authorization",
@@ -417,7 +417,7 @@
   },
   "groups": [
     {
-      "id": "23724aff-d74c-4834-8de6-7a3741a9a9fa",
+      "id": "05ca5e3d-38cf-4454-a775-958ea55fbb54",
       "name": "aspire-dashboard",
       "description": "",
       "path": "/aspire-dashboard",
@@ -501,9 +501,12 @@
       "notBefore": 0,
       "groups": []
     },
-    {
+      {
       "id": "f0d5fca3-1ee8-45ac-9f22-c18afe7de6f7",
       "username": "evorsio",
+      "email": "evorsio@icloud.com",
+      "firstName": "Evors",
+      "lastName": "io",
       "emailVerified": true,
       "enabled": true,
       "totp": false,
@@ -700,7 +703,7 @@
       ]
     },
     {
-      "id": "64b252db-bacb-4da6-8443-6c43a67bf790",
+      "id": "c18f6ba7-ede8-42e7-aa60-2fdd7f3cc522",
       "clientId": "aspire-dashboard",
       "name": "",
       "description": "",
@@ -723,7 +726,7 @@
       "consentRequired": false,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
+      "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
       "publicClient": false,
       "frontchannelLogout": true,
@@ -734,6 +737,9 @@
         "client.secret.creation.time": "1771926442",
         "backchannel.logout.session.required": "true",
         "standard.token.exchange.enabled": "false",
+        "frontchannel.logout.session.required": "true",
+        "post.logout.redirect.uris": "+",
+        "display.on.consent.screen": "false",
         "oauth2.device.authorization.grant.enabled": "false",
         "backchannel.logout.revoke.offline.tokens": "false",
         "dpop.bound.access.tokens": "false"
@@ -746,6 +752,7 @@
         "acr",
         "profile",
         "roles",
+        "groups",
         "basic",
         "email"
       ],
@@ -771,7 +778,7 @@
       "clientAuthenticatorType": "client-secret",
       "secret": "${BOT_SERVICE_SECRET}",
       "redirectUris": [
-        "${PUBLIC_BASE_URL}/bot/telegram/signin-oidc",
+"${PUBLIC_BASE_URL}/bot/telegram/signin-oidc",
         "${PUBLIC_BASE_URL}/bot/telegram/auth/callback*"
       ],
       "webOrigins": [
@@ -1184,6 +1191,38 @@
             "introspection.token.claim": "true",
             "access.token.claim": "true",
             "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "id": "f8c02137-004f-4de5-b2ce-a1a62235bc5a",
+      "name": "groups",
+      "description": "用户组",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "gui.order": "",
+        "consent.screen.text": "",
+        "include.in.openid.provider.metadata": "true"
+      },
+      "protocolMappers": [
+        {
+          "id": "d16261f4-f506-45a0-8258-eb37cedcf647",
+          "name": "用户组映射",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "true",
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "groups"
           }
         }
       ]
@@ -1736,14 +1775,14 @@
         "subComponents": {},
         "config": {
           "allowed-protocol-mapper-types": [
-            "oidc-sha256-pairwise-sub-mapper",
-            "saml-user-attribute-mapper",
-            "saml-role-list-mapper",
             "oidc-full-name-mapper",
-            "saml-user-property-mapper",
-            "oidc-usermodel-attribute-mapper",
+            "oidc-usermodel-property-mapper",
+            "saml-user-attribute-mapper",
+            "oidc-sha256-pairwise-sub-mapper",
             "oidc-address-mapper",
-            "oidc-usermodel-property-mapper"
+            "oidc-usermodel-attribute-mapper",
+            "saml-user-property-mapper",
+            "saml-role-list-mapper"
           ]
         }
       },
@@ -1802,13 +1841,13 @@
         "subComponents": {},
         "config": {
           "allowed-protocol-mapper-types": [
-            "saml-user-attribute-mapper",
-            "saml-user-property-mapper",
+            "saml-role-list-mapper",
+            "oidc-usermodel-attribute-mapper",
             "oidc-full-name-mapper",
             "oidc-sha256-pairwise-sub-mapper",
-            "saml-role-list-mapper",
             "oidc-address-mapper",
-            "oidc-usermodel-attribute-mapper",
+            "saml-user-property-mapper",
+            "saml-user-attribute-mapper",
             "oidc-usermodel-property-mapper"
           ]
         }
