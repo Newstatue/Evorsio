@@ -37,6 +37,8 @@ if (redis.Resource.PasswordParameter is not null)
     pubSub.WithMetadata("redisPassword", redis.Resource.PasswordParameter);
 }
 
+var SmtpUser = builder.AddParameter("smtp-user");
+var SmtpPassword = builder.AddParameter("smtp-password", secret: true);
 var keycloakAdminPassword = builder.AddParameter("keycloak-admin-password", secret: true);
 var keycloakAdminUsername = builder.AddParameter("keycloak-admin-username");
 var postgresUsername = builder.AddParameter("postgres-username");
@@ -49,6 +51,7 @@ var botServiceSecret = builder.AddParameter("bot-service-secret", secret: true);
 var aspireDashboardPublicUrl = builder.AddParameter("aspire-dashboard-public-url");
 var aspireDashboardClientSecret = builder.AddParameter("aspire-dashboard-client-secret", secret: true);
 var blogPublicUrl = builder.AddParameter("blog-public-url");
+
 
 // Telegram Bot 令牌
 var telegramBotToken = builder.AddParameter("telegram-bot-token", secret: true);
@@ -130,6 +133,16 @@ var ghost = builder.AddContainer("ghost", "ghost", "5-alpine")
     .WithEnvironment("NODE_ENV", builder.Environment.IsProduction() ? "production" : "development")
     .WithEnvironment("database__client", "sqlite3")
     .WithEnvironment("database__connection__filename", "content/data/ghost.db")
+
+    // --- Mailgun SMTP 配置 ---
+    .WithEnvironment("mail__from", $"Blog <{SmtpUser}>")
+    .WithEnvironment("mail__transport", "SMTP")
+    .WithEnvironment("mail__options__host", "smtp.mailgun.org")
+    .WithEnvironment("mail__options__port", "465")
+    .WithEnvironment("mail__options__secure", "true")
+    .WithEnvironment("mail__options__auth__user", SmtpUser)
+    .WithEnvironment("mail__options__auth__pass", SmtpPassword)
+
     .WithEndpoint(targetPort: 2368, scheme: "http", name: "http")
     .WithOtlpExporter();
 

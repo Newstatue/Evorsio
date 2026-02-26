@@ -80,6 +80,8 @@ jobs:
           cp -r "Evorsio.AppHost/DatabaseInit/." "$OUTPUT_DIR/DatabaseInit/"
 
           cat > "$OUTPUT_DIR/.env" <<EOF
+          SMTP_USER=${{ vars.SMTP_USER }}
+          SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
           EVORSIO_DEFAULT_USER_PASSWORD=${{ secrets.EVORSIO_DEFAULT_USER_PASSWORD }}
           ASPIRE_DASHBOARD_PUBLIC_URL=${{ vars.ASPIRE_DASHBOARD_PUBLIC_URL }}
           ASPIRE_DASHBOARD_CLIENT_SECRET=${{ secrets.ASPIRE_DASHBOARD_CLIENT_SECRET}}
