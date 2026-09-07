@@ -1,13 +1,8 @@
 package drive
 
-import "github.com/newstatue/evorsio/internal/resource"
-
-type File struct {
-	resource.Resource
-
-	Size     int64
-	MimeType string
-}
+import (
+	"github.com/newstatue/evorsio/internal/resource"
+)
 
 type Folder struct {
 	resource.Resource
@@ -22,15 +17,6 @@ type Symlink struct {
 type Entry struct {
 	ParentID string
 	ChildID  string
-}
-
-func NewFile(name string, size int64, mimeType string) File {
-	r := resource.New(name, resource.TypeFile)
-	return File{
-		Resource: r,
-		Size:     size,
-		MimeType: mimeType,
-	}
 }
 
 func NewFolder(name string) Folder {

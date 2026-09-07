@@ -1,8 +1,9 @@
 [tools]
 go = "1.27.0"
 node = "24.18.0"
-npm = "latest"
 sqlc = "1.31.1"
+gh = "2.100.0"
+"github:seaweedfs/seaweedfs" = "4.45"
 
 [env]
 ENVIRONMENT = "prod"
