@@ -3,3 +3,4 @@ web/dist
 web/node_modules
 tmp
 web/.tanstack
+bin

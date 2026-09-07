@@ -47,3 +47,24 @@ run = "sqlc generate -f db/sqlc.yml"
 [tasks.gen-types]
 description = "生成 Wails Bindings 代码"
 run = "wails3 generate bindings -ts -i -d ./web/src/types ./cmd/app"
+
+[tasks.build-seaweed]
+description = "根据当前系统构建 Darwin SeaweedFS"
+
+[tasks.build-seaweed-darwin]
+description = "构建 Darwin SeaweedFS"
+dir = "tmp/seaweedfs"
+env = { GOOS = "darwin", GOARCH = "arm64" }
+run = "go build -trimpath -ldflags='-s -w' -o ../../bin/seaweed_darwin ./weed"
+
+[tasks.build-seaweed-linux]
+description = "构建 Linux SeaweedFS"
+dir = "tmp/seaweedfs"
+env = { GOOS = "linux", GOARCH = "amd64" }
+run = "go build -trimpath -ldflags='-s -w' -o ../../bin/seaweed_linux ./weed"
+
+[tasks.build-seaweed-windows]
+description = "构建 Windows SeaweedFS"
+dir = "tmp/seaweedfs"
+env = { GOOS = "windows", GOARCH = "amd64" }
+run = "go build -trimpath -ldflags='-s -w' -o ../../bin/seaweed_windows.exe ./weed"
