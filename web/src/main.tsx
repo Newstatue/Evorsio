@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider.tsx"
 import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
 import {createHashHistory, createRouter, RouterProvider} from "@tanstack/react-router";
 import {routeTree} from "@/routeTree.gen.ts";
+import type {LucideIcon} from "lucide-react";
 
 export const queryClient = new QueryClient({
     defaultOptions:{
@@ -26,6 +27,10 @@ export const router = createRouter({
 declare module "@tanstack/react-router"{
     interface Register {
         router: typeof router
+    }
+    interface StaticDataRouteOption {
+        breadcrumb?:string
+        icon?: LucideIcon
     }
 }
 

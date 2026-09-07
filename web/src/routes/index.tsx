@@ -3,6 +3,9 @@ import {Button} from "@/components/ui/button.tsx";
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,
+  staticData:{
+    breadcrumb:"首页",
+  }
 })
 
 function RouteComponent() {

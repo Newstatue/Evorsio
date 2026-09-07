@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashRouteRouteImport } from './routes/dash/route'
-import { Route as DashIndexRouteImport } from './routes/dash/index'
 import { Route as DashDriveIndexRouteImport } from './routes/dash/drive/index'
 import { Route as DashVaultIndexRouteImport } from './routes/dash/vault/index'
 
@@ -24,11 +23,6 @@ const DashRouteRoute = DashRouteRouteImport.update({
   id: '/dash',
   path: '/dash',
   getParentRoute: () => rootRouteImport,
-} as any)
-const DashIndexRoute = DashIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => DashRouteRoute,
 } as any)
 const DashDriveIndexRoute = DashDriveIndexRouteImport.update({
   id: '/drive/',
@@ -44,13 +38,12 @@ const DashVaultIndexRoute = DashVaultIndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dash': typeof DashRouteRouteWithChildren
-  '/dash/': typeof DashIndexRoute
   '/dash/drive/': typeof DashDriveIndexRoute
   '/dash/vault/': typeof DashVaultIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/dash': typeof DashIndexRoute
+  '/dash': typeof DashRouteRouteWithChildren
   '/dash/drive': typeof DashDriveIndexRoute
   '/dash/vault': typeof DashVaultIndexRoute
 }
@@ -58,16 +51,15 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dash': typeof DashRouteRouteWithChildren
-  '/dash/': typeof DashIndexRoute
   '/dash/drive/': typeof DashDriveIndexRoute
   '/dash/vault/': typeof DashVaultIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dash' | '/dash/' | '/dash/drive/' | '/dash/vault/'
+  fullPaths: '/' | '/dash' | '/dash/drive/' | '/dash/vault/'
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/dash' | '/dash/drive' | '/dash/vault'
-  id: '__root__' | '/' | '/dash' | '/dash/' | '/dash/drive/' | '/dash/vault/'
+  id: '__root__' | '/' | '/dash' | '/dash/drive/' | '/dash/vault/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -91,13 +83,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dash/': {
-      id: '/dash/'
-      path: '/'
-      fullPath: '/dash/'
-      preLoaderRoute: typeof DashIndexRouteImport
-      parentRoute: typeof DashRouteRoute
-    }
     '/dash/drive/': {
       id: '/dash/drive/'
       path: '/drive'
@@ -116,13 +101,11 @@ declare module '@tanstack/react-router' {
 }
 
 interface DashRouteRouteChildren {
-  DashIndexRoute: typeof DashIndexRoute
   DashDriveIndexRoute: typeof DashDriveIndexRoute
   DashVaultIndexRoute: typeof DashVaultIndexRoute
 }
 
 const DashRouteRouteChildren: DashRouteRouteChildren = {
-  DashIndexRoute: DashIndexRoute,
   DashDriveIndexRoute: DashDriveIndexRoute,
   DashVaultIndexRoute: DashVaultIndexRoute,
 }
