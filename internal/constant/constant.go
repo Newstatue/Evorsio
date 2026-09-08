@@ -16,3 +16,9 @@ const (
 	LogArgError     LogArg = "error"
 	LogArgComponent LogArg = "component"
 )
+
+type ErrMsg string
+
+const (
+	ErrParseConfig ErrMsg = "配置解析出错"
+)

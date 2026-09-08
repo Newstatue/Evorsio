@@ -30,7 +30,7 @@ func main() {
 
 	cfg, err := common.NewConfig()
 	if err != nil {
-		l.Error("配置出错", kErr, err)
+		l.Error(string(constant.ErrParseConfig), kErr, err)
 		return
 	}
 
