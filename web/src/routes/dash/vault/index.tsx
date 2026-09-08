@@ -1,10 +1,10 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router"
 
-export const Route = createFileRoute('/dash/vault/')({
+export const Route = createFileRoute("/dash/vault/")({
   component: RouteComponent,
-  staticData:{
-    breadcrumb:"密钥",
-  }
+  staticData: {
+    breadcrumb: "密钥",
+  },
 })
 
 function RouteComponent() {

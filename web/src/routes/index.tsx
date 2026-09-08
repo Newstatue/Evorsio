@@ -1,11 +1,11 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
-import {Button} from "@/components/ui/button.tsx";
+import { createFileRoute, Link } from "@tanstack/react-router"
+import { Button } from "@/components/ui/button.tsx"
 
-export const Route = createFileRoute('/')({
+export const Route = createFileRoute("/")({
   component: RouteComponent,
-  staticData:{
-    breadcrumb:"首页",
-  }
+  staticData: {
+    breadcrumb: "首页",
+  },
 })
 
 function RouteComponent() {
@@ -21,9 +21,7 @@ function RouteComponent() {
         <div className="font-mono text-xs text-muted-foreground">
           (Press <kbd>d</kbd> to toggle dark mode)
         </div>
-        <Button render={<Link to="/dash/drive" />}>
-          Drive
-        </Button>
+        <Button render={<Link to="/dash/drive" />}>Drive</Button>
       </div>
     </div>
   )

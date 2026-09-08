@@ -25,8 +25,6 @@ env = {
 }
 raw = true
 
-
-
 [tasks.prod-app]
 description = "部署 APP"
 run = "go run -tags ${ENVIRONMENT} ./cmd/app"
@@ -39,7 +37,6 @@ env = {
     FS_DATA_DIR = "./tmp/weed-data"
 }
 raw = true
-
 
 [tasks.dev-web]
 description = "开发 APP"
@@ -68,6 +65,13 @@ run = "wails3 generate bindings -ts -i -d ./web/src/types ./cmd/app"
 [tasks.build-seaweedfs]
 description = "根据当前系统构建 Darwin SeaweedFS"
 run = "go run ./cmd/build-seaweedfs"
+env = {
+    ENVIRONMENT = "dev",
+}
+
+[tasks.fmt]
+description = "格式化代码"
+run = "go fmt ./... && npm --prefix ./web run format"
 env = {
     ENVIRONMENT = "dev",
 }
