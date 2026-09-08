@@ -14,7 +14,8 @@ CGO_LDFLAGS="-mmacosx-version-min=13.0"
 
 [tasks.dev-app]
 description = "开发 APP"
-run = "go run -tags dev ./cmd/app"
+run = "go run -tags ${ENVIRONMENT} ./cmd/app"
+run_windows = "go run -tags %ENVIRONMENT% ./cmd/app"
 env = {
     ENVIRONMENT = "dev",
     NAME = "evo",
@@ -27,7 +28,8 @@ raw = true
 
 [tasks.prod-app]
 description = "部署 APP"
-run = "go run -tags prod ./cmd/app"
+run = "go run -tags ${ENVIRONMENT} ./cmd/app"
+run_windows = "go run -tags %ENVIRONMENT% ./cmd/app"
 env = {
     ENVIRONMENT = "prod",
     NAME = "evo",
