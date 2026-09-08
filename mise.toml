@@ -50,7 +50,10 @@ raw = true
 [tasks.build-web]
 description = "构建 WEB"
 dir = "web"
-run = "npm i && npm run build"
+run = [
+    "npm ci",
+    "npm run build"
+]
 
 [tasks.test]
 description = "运行所有 TEST"
@@ -73,7 +76,10 @@ env = {
 
 [tasks.fmt]
 description = "格式化代码"
-run = "go fmt ./... && npm --prefix ./web run format"
+run = [
+    "go fmt ./...",
+    "npm --prefix ./web run format"
+]
 env = {
     ENVIRONMENT = "dev",
 }
