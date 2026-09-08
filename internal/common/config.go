@@ -13,14 +13,16 @@ type Config struct {
 	App  AppConfig
 	HTTP HTTPConfig
 	DB   DBConfig
+	FS   FSConfig
 
 	dict    map[string]any
 	errDict map[string]error
 }
 
 type AppConfig struct {
-	Name    string `env:"NAME" envDefault:"evorsio"`
-	Version string `env:"VERSION"`
+	Environment string `env:"ENVIRONMENT" envDefault:"dev"`
+	Name        string `env:"NAME" envDefault:"evorsio"`
+	Version     string `env:"VERSION"`
 }
 
 type HTTPConfig struct {
@@ -28,7 +30,13 @@ type HTTPConfig struct {
 }
 
 type DBConfig struct {
-	DSN string `env:"DSN"`
+	Driver string `env:"NAME" envDefault:"sqlite"`
+	DSN    string `env:"DSN"`
+}
+
+type FSConfig struct {
+	Path    string `env:"FS_PATH"`
+	DataDir string `env:"FS_DATA_DIR"`
 }
 
 func NewConfig() (*Config, error) {

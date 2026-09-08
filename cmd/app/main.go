@@ -3,43 +3,53 @@ package main
 import (
 	"database/sql"
 	"log/slog"
-	"os"
-	"time"
 
-	"github.com/lmittmann/tint"
-	"github.com/mattn/go-colorable"
 	"github.com/newstatue/evorsio"
 	"github.com/newstatue/evorsio/internal/common"
+	"github.com/newstatue/evorsio/internal/constant"
+	"github.com/newstatue/evorsio/internal/seaweedfs"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	_ "modernc.org/sqlite"
 )
 
+func init() {
+	common.InitLogger(slog.LevelDebug)
+}
+
+var kErr = constant.LogArgError
+var kComponent = constant.LogArgComponent
+var vComponentApp = constant.ComponentApp
+var vComponentFS = constant.ComponentFS
+var vComponentWails = constant.ComponentWails
+
 func main() {
-	l := slog.New(tint.NewTextHandler(colorable.NewColorable(os.Stderr), &tint.Options{
-		Level:      slog.LevelInfo,
-		TimeFormat: time.RFC3339Nano,
-	}))
-	slog.SetDefault(l)
+	l := slog.Default()
+	al := l.With(kComponent, vComponentApp)
+
 	cfg, err := common.NewConfig()
 	if err != nil {
-		l.Error("配置出错", "error", err)
+		l.Error("配置出错", kErr, err)
 		return
 	}
 
-	db, err := sql.Open("sqlite", cfg.DB.DSN)
+	db, err := sql.Open(cfg.DB.Driver, cfg.DB.DSN)
 	if err != nil {
-		l.Error("数据库初始化失败", "error", err)
+		l.Error("数据库初始化失败", kErr, err)
 		return
 	}
 	defer func(db *sql.DB) {
 		_ = db.Close()
 	}(db)
 
+	fs := seaweedfs.New(l.With(kComponent, vComponentFS))
+
 	app := application.New(application.Options{
 		Name:        "app",
 		Description: "A demo of using raw HTML & CSS",
-		Logger:      l,
-		Services:    []application.Service{},
+		Logger:      l.With(kComponent, vComponentWails),
+		Services: []application.Service{
+			application.NewService(fs),
+		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(evorsio.Assets),
 		},
@@ -61,15 +71,22 @@ func main() {
 		URL:              "/",
 	})
 
-	if err := db.PingContext(app.Context()); err != nil {
-		l.ErrorContext(app.Context(), "数据库连接失败", "error", err)
+	ctx := app.Context()
+
+	if err := db.PingContext(ctx); err != nil {
+		al.ErrorContext(ctx, "数据库连接失败", kErr, err)
+		return
+	}
+
+	if err := fs.Start(ctx, cfg.FS.Path, cfg.FS.DataDir); err != nil {
+		al.ErrorContext(ctx, "对象存储连接失败", kErr, err)
 		return
 	}
 
 	if err := app.Run(); err != nil {
-		l.Error("APP 退出异常", "error", err)
+		al.Error("APP 退出异常", kErr, err)
 		return
 	}
 
-	l.Info("APP 正常退出")
+	al.Info("APP 正常退出")
 }

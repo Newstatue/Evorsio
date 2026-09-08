@@ -7,10 +7,12 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/newstatue/evorsio/internal/constant"
 )
 
 func main() {
-	out, err := exec.Command("mise", "where", "github:seaweedfs/seaweedfs@4.45").Output()
+	out, err := exec.Command("mise", "where", "github:seaweedfs/seaweedfs").Output()
 	if err != nil {
 		panic(err)
 	}
@@ -26,7 +28,9 @@ func main() {
 	}
 
 	src := filepath.Join(dir, srcName)
-	dstDir := filepath.Join("bin")
+
+	dstDir := filepath.Join(constant.BuildDirTMP)
+
 	dst := filepath.Join(dstDir, dstName)
 
 	if err := os.MkdirAll(dstDir, 0755); err != nil {
