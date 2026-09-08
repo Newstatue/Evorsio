@@ -30,7 +30,7 @@ type HTTPConfig struct {
 }
 
 type DBConfig struct {
-	Driver string `env:"NAME" envDefault:"sqlite"`
+	Driver string `env:"DRIVER" envDefault:"sqlite"`
 	DSN    string `env:"DSN"`
 }
 

@@ -17,11 +17,11 @@ func init() {
 }
 
 const (
-	kErr            = constant.LogArgError
-	kComponent      = constant.LogArgComponent
-	vComponentApp   = constant.ComponentApp
-	vComponentFS    = constant.ComponentFS
-	vComponentWails = constant.ComponentWails
+	kErr            = string(constant.LogArgError)
+	kComponent      = string(constant.LogArgComponent)
+	vComponentApp   = string(constant.ComponentApp)
+	vComponentFS    = string(constant.ComponentFS)
+	vComponentWails = string(constant.ComponentWails)
 )
 
 func main() {
