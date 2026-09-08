@@ -16,11 +16,13 @@ func init() {
 	common.InitLogger(slog.LevelDebug)
 }
 
-var kErr = constant.LogArgError
-var kComponent = constant.LogArgComponent
-var vComponentApp = constant.ComponentApp
-var vComponentFS = constant.ComponentFS
-var vComponentWails = constant.ComponentWails
+const (
+	kErr            = constant.LogArgError
+	kComponent      = constant.LogArgComponent
+	vComponentApp   = constant.ComponentApp
+	vComponentFS    = constant.ComponentFS
+	vComponentWails = constant.ComponentWails
+)
 
 func main() {
 	l := slog.Default()
