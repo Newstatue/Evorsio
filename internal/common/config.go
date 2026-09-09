@@ -37,6 +37,7 @@ type DBConfig struct {
 type FSConfig struct {
 	Path    string `env:"FS_PATH"`
 	DataDir string `env:"FS_DATA_DIR"`
+	Addr    string `env:"FS_ADDR"`
 }
 
 func NewConfig() (*Config, error) {

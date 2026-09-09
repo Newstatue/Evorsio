@@ -4,6 +4,8 @@ node = "24.18.0"
 sqlc = "1.31.1"
 gh = "2.100.0"
 "github:seaweedfs/seaweedfs" = "4.45"
+protoc-gen-go = "1.36.12"
+protoc-gen-go-grpc = "1.6.2"
 
 [env]
 ENVIRONMENT = "prod"
@@ -16,35 +18,32 @@ CGO_LDFLAGS="-mmacosx-version-min=13.0"
 description = "开发 APP"
 run = "go run -tags ${ENVIRONMENT} ./cmd/app"
 run_windows = "go run -tags %ENVIRONMENT% ./cmd/app"
-env = {
-    ENVIRONMENT = "dev",
-    NAME = "evo",
-    VERSION = "0.0.1",
-    DSN = "file:./tmp/data.sqlite",
-    FS_PATH = "./tmp/weed",
-    FS_DATA_DIR = "./tmp/weed-data"
-}
 raw = true
+[tasks.dev-app.env]
+ENVIRONMENT = "dev"
+NAME = "evo"
+VERSION = "0.0.1"
+DSN = "file:./tmp/data.sqlite"
+FS_PATH = "./tmp/weed"
+FS_DATA_DIR = "./tmp/weed-data"
+FS_ADDR = "127.0.0.1:18888"
 
 [tasks.prod-app]
 description = "部署 APP"
 run = "go run -tags ${ENVIRONMENT} ./cmd/app"
 run_windows = "go run -tags %ENVIRONMENT% ./cmd/app"
-env = {
-    ENVIRONMENT = "prod",
-    NAME = "evo",
-    VERSION = "0.0.1",
-    DSN = "file:./tmp/data.sqlite",
-    FS_PATH = "./tmp/weed",
-    FS_DATA_DIR = "./tmp/weed-data"
-}
 raw = true
+[tasks.prod-app.env]
+ENVIRONMENT = "prod"
+NAME = "evo"
+VERSION = "0.0.1"
+DSN = "file:./tmp/data.sqlite"
+FS_PATH = "./tmp/weed"
+FS_DATA_DIR = "./tmp/weed-data"
 
 [tasks.dev-web]
 description = "开发 APP"
 run = "npm --prefix ./web run dev"
-env = {
-}
 raw = true
 
 [tasks.build-web]
@@ -70,9 +69,6 @@ run = "wails3 generate bindings -ts -i -d ./web/src/types ./cmd/app"
 [tasks.build-seaweedfs]
 description = "根据当前系统构建 Darwin SeaweedFS"
 run = "go run ./cmd/build-seaweedfs"
-env = {
-    ENVIRONMENT = "dev",
-}
 
 [tasks.fmt]
 description = "格式化代码"
@@ -80,6 +76,16 @@ run = [
     "go fmt ./...",
     "npm --prefix ./web run format"
 ]
-env = {
-    ENVIRONMENT = "dev",
-}
+
+[tasks.gen-filer]
+description = "生成 filer api"
+run = """
+protoc \
+  --go_out=. \
+  --go_opt=module=github.com/newstatue/evorsio \
+  --go_opt=Mfs/seaweedfs/filer.proto=github.com/newstatue/evorsio/internal/fsgen\\;fsgen \
+  --go-grpc_out=. \
+  --go-grpc_opt=module=github.com/newstatue/evorsio \
+  --go-grpc_opt=Mfs/seaweedfs/filer.proto=github.com/newstatue/evorsio/internal/fsgen\\;fsgen \
+  fs/seaweedfs/filer.proto
+"""

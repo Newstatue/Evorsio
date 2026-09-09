@@ -43,15 +43,16 @@ func main() {
 		_ = db.Close()
 	}(db)
 
-	fs := seaweedfs.New(l.With(kComponent, vComponentFS))
+	fs := seaweedfs.New(&cfg.FS, l.With(kComponent, vComponentFS))
+	defer func(fs *seaweedfs.SeaweedFS) {
+		_ = fs.Close()
+	}(fs)
 
 	app := application.New(application.Options{
 		Name:        "app",
 		Description: "A demo of using raw HTML & CSS",
 		Logger:      l.With(kComponent, vComponentWails),
-		Services: []application.Service{
-			application.NewService(fs),
-		},
+		Services:    []application.Service{},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(evorsio.Assets),
 		},
@@ -80,8 +81,8 @@ func main() {
 		return
 	}
 
-	if err := fs.Start(ctx, cfg.FS.Path, cfg.FS.DataDir); err != nil {
-		al.ErrorContext(ctx, "对象存储连接失败", kErr, err)
+	if err := fs.Start(ctx); err != nil {
+		al.ErrorContext(ctx, "对象存储启动失败", kErr, err)
 		return
 	}
 
