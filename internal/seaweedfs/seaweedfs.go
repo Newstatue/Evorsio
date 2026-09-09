@@ -13,9 +13,7 @@ import (
 )
 
 const (
-	KErr         = string(constant.LogArgError)
-	KComponent   = string(constant.LogArgComponent)
-	VComponentFS = string(constant.ComponentFS)
+	KErr = string(constant.LogArgError)
 )
 
 type SeaweedFS struct {
