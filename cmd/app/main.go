@@ -39,14 +39,8 @@ func main() {
 		l.Error("数据库初始化失败", kErr, err)
 		return
 	}
-	defer func(db *sql.DB) {
-		_ = db.Close()
-	}(db)
 
 	fs := seaweedfs.New(&cfg.FS, l.With(kComponent, vComponentFS))
-	defer func(fs *seaweedfs.SeaweedFS) {
-		_ = fs.Close()
-	}(fs)
 
 	app := application.New(application.Options{
 		Name:        "app",
@@ -72,6 +66,11 @@ func main() {
 		},
 		BackgroundColour: application.NewRGB(6, 7, 15),
 		URL:              "/",
+	})
+
+	app.OnShutdown(func() {
+		_ = db.Close()
+		_ = fs.Close()
 	})
 
 	ctx := app.Context()
